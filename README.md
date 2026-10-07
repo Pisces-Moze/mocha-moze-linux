@@ -79,10 +79,10 @@ Linux 原生的 `arch/`、`drivers/`、`include/`、`kernel/` 等目录保持完
 
 | 区域 | 文件 | 做了什么 |
 |---|---|---|
-| 内核核心与早期诊断 | `arch/arm/kernel/{head.S,head-common.S,setup.c,time.c}`、`arch/arm/mm/mmu.c`、`init/main.c`、`drivers/tty/serial/earlycon.c` | 在时钟和 PMIC 初始化之前保留可读的屏幕日志；诊断暂停只能显式启用，默认关闭 |
+| 内核核心与早期诊断 | `arch/arm/kernel/{head.S,head-common.S,setup.c,time.c}`、`arch/arm/mm/mmu.c`、`init/main.c`、`drivers/tty/serial/earlycon.c`、`arch/arm/mach-tegra/io.c` | 一套早期 framebuffer 诊断：把 bootloader 已经点亮的 framebuffer 用固定设备别名 `0xfda00000`（物理 `0xf1700000`，长 `0x600000`）保留到 `paging_init()` 之后，`mocha_fb_checkpoint()` 在 `of_clk_init` 等阶段把进度打到屏幕上。源码注释里逐处标了 RAM-only，不是产品功能 |
 | 四核与安全复位 | `arch/arm/mach-tegra/{reset.c,io.c}` | `reset.c` 通过板级显式 DT 属性调用原厂 TLK SMC `0x82000001` 设置安全 reset vector，SMP 操作继续用 Tegra PMC/flow-controller；四核已实测 |
-| 供电与充电 | `drivers/regulator/palmas-regulator.c`、`drivers/power/supply/bq24190_charger.c`、`Documentation/devicetree/bindings/power/supply/bq24190.yaml` | Palmas 保持原厂供电的 software 模式，避免切外部控制后屏幕熄灭；bq24190 增加板级充电使能处理 |
-| USB | `drivers/usb/chipidea/{ci_hdrc_tegra.c,otg.c,udc.c}`、`drivers/usb/phy/phy-tegra-usb.c` | 会话检测结合真实 PMIC 输入，取代早期假定 VBUS 的实验；device 角色与 PHY 的 `dr_mode` 必须一致 |
+| 供电与充电 | `drivers/regulator/palmas-regulator.c`、`drivers/power/supply/bq24190_charger.c`、`Documentation/devicetree/bindings/power/supply/bq24190.yaml` | Palmas 保持原厂供电的 software 模式，避免切外部控制后屏幕熄灭；bq24190 增加 `ce-gpios` 充电使能控制，绑定文档同步补上这个属性 |
+| USB | `drivers/usb/chipidea/{ci_hdrc_tegra.c,otg.c,udc.c}`、`drivers/usb/phy/phy-tegra-usb.c` | Mocha 的 device VBUS 走 Palmas 比较器，改动把它的真实状态同步进 Tegra UTMI 的 session selector，而不是强行标记成已连接；OTG 与 UDC 分支用 `of_machine_is_compatible("nvidia,mocha")` 限定范围。PHY 侧是显式选入的 RAM 测试，只设 session detector、不控制 VBUS 输出，该模式下没有拔出检测 |
 | 显示 | `drivers/gpu/drm/tegra/dsi.c`、`drivers/gpu/drm/panel/{Kconfig,Makefile,panel-sharp-lq079l1sx01.c}` | 双链路、LP 命令时钟、ganged 布局、短 DCS 返回长度处理；面板驱动进树 |
 | 其他 | `drivers/clk/tegra/clk-tegra124.c`、`drivers/bluetooth/btbcm.c` | 时钟与蓝牙的板级调整 |
 
