@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/* Initial USB device mode for recovery/debugging. OTG host VBUS is not enabled
+ * until the charger model and ID/VBUS detection have been checked on hardware.
+ */
+/ {
+    usb@7d000000 {
+        compatible = "nvidia,tegra124-udc";
+        dr_mode = "peripheral";
+        status = "okay";
+    };
+    usb-phy@7d000000 {
+        dr_mode = "peripheral";
+        vbus-supply = <&ldousb_reg>;
+        nvidia,xcvr-lsfslew = <2>;
+        nvidia,xcvr-lsrslew = <2>;
+        status = "okay";
+    };
+};

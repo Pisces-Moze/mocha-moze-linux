@@ -1,0 +1,2 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/* Supply your own Bluetooth address privately; no device identity is published. */

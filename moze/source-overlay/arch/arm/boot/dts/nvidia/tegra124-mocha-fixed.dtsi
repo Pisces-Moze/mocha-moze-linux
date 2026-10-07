@@ -1,0 +1,141 @@
+#include <dt-bindings/gpio/tegra-gpio.h>
+
+/ {
+	regulators {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		vdd_ac_bat_reg: regulator@0 {
+			compatible = "regulator-fixed";
+			reg = <0>;
+			regulator-name = "vdd_ac_bat";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			regulator-always-on;
+		};
+
+		usb0_vbus: regulator@1 {
+			compatible = "regulator-fixed";
+			reg = <1>;
+			regulator-name = "usb0-vbus";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			gpio = <&gpio TEGRA_GPIO(N, 4) GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+			gpio-open-drain;
+		};
+
+		usb1_vbus: regulator@2 {
+			compatible = "regulator-fixed";
+			reg = <2>;
+			regulator-name = "usb1-vbus";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			enable-active-high;
+			gpio = <&gpio TEGRA_GPIO(N, 5) GPIO_ACTIVE_HIGH>;
+			gpio-open-drain;
+			vin-supply = <&palmas_smps10_out2>;
+		};
+
+		usb2_vbus: regulator@3 {
+			compatible = "regulator-fixed";
+			reg = <3>;
+			regulator-name = "usb2-vbus";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			enable-active-high;
+			gpio = <&gpio TEGRA_GPIO(FF, 1) GPIO_ACTIVE_HIGH>;
+			gpio-open-drain;
+			vin-supply = <&palmas_smps10_out2>;
+		};
+
+		avdd_lcd: regulator@4 {
+			compatible = "regulator-fixed";
+			reg = <4>;
+			regulator-name = "avdd-lcd-vsp";
+			regulator-min-microvolt = <5500000>;
+			regulator-max-microvolt = <5500000>;
+			regulator-boot-on;
+			gpio = <&gpio TEGRA_GPIO(I, 4) GPIO_ACTIVE_HIGH>;
+			regulator-always-on;
+			enable-active-high;
+		};
+
+		bvdd_lcd: regulator@5 {
+			compatible = "regulator-fixed";
+			reg = <5>;
+			regulator-name = "avdd-lcd-vsn";
+			regulator-min-microvolt = <5500000>;
+			regulator-max-microvolt = <5500000>;
+			regulator-boot-on;
+			gpio = <&gpio TEGRA_GPIO(S, 2) GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+		};
+
+		vdd_lcd: regulator@6 {
+			compatible = "regulator-fixed";
+			reg = <6>;
+			regulator-name = "vdd-lcd";
+			regulator-min-microvolt = <1200000>;
+			regulator-max-microvolt = <1200000>;
+			enable-active-high;
+			gpio = <&palmas_gpio 4 GPIO_ACTIVE_HIGH>;
+			vin-supply = <&palmas_smps8>;
+		};
+
+		ldoen: regulator@7 {
+			compatible = "regulator-fixed";
+			reg = <7>;
+			regulator-name = "ldoen";
+			regulator-min-microvolt = <1200000>;
+			regulator-max-microvolt = <1200000>;
+			enable-active-high;
+			gpio = <&palmas_gpio 6 GPIO_ACTIVE_HIGH>;
+			vin-supply = <&palmas_smps8>;
+		};
+
+		en_lcd_bl: regulator@8 {
+			compatible = "regulator-fixed";
+			reg = <8>;
+			regulator-name = "en-lcd-bl";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			enable-active-high;
+			gpio = <&gpio TEGRA_GPIO(H, 2) GPIO_ACTIVE_HIGH>;
+		};
+
+		vdd_hdmi: regulator@9 {
+			compatible = "regulator-fixed";
+			reg = <9>;
+			regulator-name = "vdd-hdmi";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			enable-active-high;
+			gpio = <&gpio TEGRA_GPIO(K, 6) GPIO_ACTIVE_HIGH>;
+			vin-supply = <&palmas_smps10_out1>;
+		};
+
+		vdd_cam_1v8: regulator@a {
+			compatible = "regulator-fixed";
+			reg = <10>;
+			regulator-name = "vdd-cam-1v8";
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+			enable-active-high;
+			gpio = <&palmas_gpio 1 GPIO_ACTIVE_HIGH>;
+			vin-supply = <&palmas_smps8>;
+		};
+
+		vdd_cam_1v2: regulator@b {
+			compatible = "regulator-fixed";
+			reg = <11>;
+			regulator-name = "vdd-cam-1v2";
+			regulator-min-microvolt = <1200000>;
+			regulator-max-microvolt = <1200000>;
+			enable-active-high;
+			gpio = <&palmas_gpio 2 GPIO_ACTIVE_HIGH>;
+			vin-supply = <&palmas_smps8>;
+		};
+	};
+};

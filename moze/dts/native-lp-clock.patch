@@ -1,0 +1,22 @@
+--- native4.dts
++++ native5-lp.dts
+@@ -594,6 +594,9 @@
+ 		};
+ 
+ 		dsi@54300000 {
++			assigned-clock-rates = <0xb71b00>;
++			assigned-clock-parents = <0x03 0xc9>;
++			assigned-clocks = <0x03 0x93>;
+ 			compatible = "nvidia,tegra124-dsi";
+ 			reg = <0x00 0x54300000 0x00 0x40000>;
+ 			clocks = <0x03 0x30 0x03 0x93 0x03 0xdb>;
+@@ -615,6 +618,9 @@
+ 		};
+ 
+ 		dsi@54400000 {
++			assigned-clock-rates = <0xb71b00>;
++			assigned-clock-parents = <0x03 0xc9>;
++			assigned-clocks = <0x03 0x94>;
+ 			compatible = "nvidia,tegra124-dsi";
+ 			reg = <0x00 0x54400000 0x00 0x40000>;
+ 			clocks = <0x03 0x52 0x03 0x94 0x03 0xdb>;

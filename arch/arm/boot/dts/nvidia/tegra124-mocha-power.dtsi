@@ -1,0 +1,31 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/* REG0A=0x2b (PN=5, cold/hot profile, revision=3) was read on this tablet.
+ * It matches TI's BQ24192 register definition. The fuel gauge reports
+ * device type 0x0520 and FW 0x0329, documented as BQ27520-G4.
+ * Initial charge limits are deliberately below the old 2.5 A / 4.35 V values.
+ * This board declaration is not a completed fast-charge qualification.
+ */
+/ {
+    mocha_battery: battery {
+        compatible = "simple-battery";
+        precharge-current-microamp = <256000>;
+        charge-term-current-microamp = <128000>;
+        constant-charge-current-max-microamp = <1000000>;
+        constant-charge-voltage-max-microvolt = <4208000>;
+    };
+    i2c@7000c400 {
+        charger@6b {
+            compatible = "ti,bq24192";
+            reg = <0x6b>;
+            interrupt-parent = <&gpio>;
+            interrupts = <TEGRA_GPIO(J, 0) IRQ_TYPE_EDGE_FALLING>;
+            monitored-battery = <&mocha_battery>;
+            omit-battery-class;
+            usb0_vbus_reg: usb-otg-vbus {
+                regulator-name = "mocha-usb-otg-vbus";
+                regulator-min-microvolt = <5000000>;
+                regulator-max-microvolt = <5000000>;
+            };
+        };
+    };
+};

@@ -3,7 +3,7 @@ VERSION = 6
 PATCHLEVEL = 12
 SUBLEVEL = 111
 EXTRAVERSION =
-NAME = Baby Opossum Posse
+NAME = mocha moze linux
 
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"

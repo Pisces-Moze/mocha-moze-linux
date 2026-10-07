@@ -1,0 +1,110 @@
+/ {
+	host1x@50000000 {
+		status = "okay";
+		
+		dc@54200000 {
+			status = "okay";
+			dvdd_lcd-supply = <&palmas_ldo2>;
+			avdd_lcd-supply = <&avdd_lcd>;
+			bvdd_lcd-supply = <&bvdd_lcd>;
+			avdd_dsi_csi-supply = <&ldo5_reg>;
+			dvdd_lcdio-supply = <&palmas_ldo2>;
+		};
+		
+		dsia: dsi@54300000 {
+			status = "okay";
+			avdd-dsi-csi-supply = <&ldo5_reg>;
+			
+			secondary: panel@0 {
+				compatible = "sharp,lq079l1sx01";
+				reg = <0>;
+			};
+
+		};
+		
+		dsib: dsi@54400000 {
+			status = "okay";
+			avdd-dsi-csi-supply = <&ldo5_reg>;
+			nvidia,ganged-mode = <&dsia>;
+
+			panel@0 {
+				compatible = "sharp,lq079l1sx01";
+				reg = <0>;
+				link2 = <&secondary>;
+				vsp-supply = <&avdd_lcd>;
+				vsn-supply = <&bvdd_lcd>;
+				vddio-supply = <&palmas_ldo2>;
+				reset-gpios = <&gpio TEGRA_GPIO(H, 3) GPIO_ACTIVE_LOW>; /* PH3 */
+				backlight = <&backlight>;
+			};
+		};
+	};
+
+	i2c@7000c000 {
+		backlight: backlight@2c {
+			compatible = "ti,lp8556";
+			reg = <0x2c>;
+
+			dev-ctrl = /bits/ 8 <0x83>;
+			init-brt = /bits/ 8 <0x1f>;
+			led-en   = /bits/ 8 <0x0f>;
+
+			rom_98h {
+				rom-addr = /bits/ 8 <0x98>;
+				rom-val = /bits/ 8 <0x80>;
+			};
+			rom_9eh {
+				rom-addr = /bits/ 8 <0x9e>;
+				rom-val = /bits/ 8 <0x21>;
+			};
+			rom_a0h {
+				rom-addr = /bits/ 8 <0xa0>;
+				rom-val = /bits/ 8 <0xff>;
+			};
+			rom_a1h {
+				rom-addr = /bits/ 8 <0xa1>;
+				rom-val = /bits/ 8 <0x3f>;
+			};
+			rom_a2h {
+				rom-addr = /bits/ 8 <0xa2>;
+				rom-val = /bits/ 8 <0x20>;
+			};
+			rom_a3h {
+				rom-addr = /bits/ 8 <0xa3>;
+				rom-val = /bits/ 8 <0x00>;
+			};
+			rom_a4h {
+				rom-addr = /bits/ 8 <0xa4>;
+				rom-val = /bits/ 8 <0x72>;
+			};
+			rom_a5h {
+				rom-addr = /bits/ 8 <0xa5>;
+				rom-val = /bits/ 8 <0x24>;
+			};
+			rom_a6h {
+				rom-addr = /bits/ 8 <0xa6>;
+				rom-val = /bits/ 8 <0x80>;
+			};
+			rom_a7h {
+				rom-addr = /bits/ 8 <0xa7>;
+				rom-val = /bits/ 8 <0xf5>;
+			};
+			rom_a8h {
+				rom-addr = /bits/ 8 <0xa8>;
+				rom-val = /bits/ 8 <0x24>;
+			};
+			rom_a9h {
+				rom-addr = /bits/ 8 <0xa9>;
+				rom-val = /bits/ 8 <0xb2>;
+			};
+			rom_aah {
+				rom-addr = /bits/ 8 <0xaa>;
+				rom-val = /bits/ 8 <0x8f>;
+			};
+			rom_aeh {
+				rom-addr = /bits/ 8 <0xae>;
+				rom-val = /bits/ 8 <0x0f>;
+			};
+		};
+	};
+};

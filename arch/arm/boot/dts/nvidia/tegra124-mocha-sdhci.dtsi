@@ -1,0 +1,58 @@
+/*
+ * arch/arm/boot/dts/tegra124-platforms/tegra124-mocha-sdhci.dtsi
+ *
+ * Copyright (c) 2018, Alexandrov Dmitry. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ */
+ 
+#include <dt-bindings/gpio/tegra-gpio.h>
+
+/ {
+	
+ 	aliases {
+ 		mmc1 = &sdmmc1;
+		mmc2 = &sdmmc3;
+		mmc0 = &sdmmc4;
+	};
+	
+	/* MMC */
+ 	sdmmc4: mmc@700b0600 {
+		vmmc-supply = <&palmas_smps9>;
+		vqmmc-supply = <&palmas_smps8>;
+		bus-width = <8>;
+		non-removable;
+		max-frequency = <51000000>;
+		status = "okay";
+ 	};
+	
+	/* SDcard */
+	sdmmc3: mmc@700b0400 {
+		sd-uhs-ddr50;
+		mmc-ddr-3_3v;
+		max-frequency = <41000000>;
+ 		
+ 		cd-gpios = <&gpio TEGRA_GPIO(V, 2) GPIO_ACTIVE_LOW>;
+ 		vmmc-supply = <&sd_slot_power>;
+		vqmmc-supply = <&palmas_ldo9>;
+		status = "okay";
+	};
+	
+	/* Wi-Fi */
+	sdmmc1: mmc@700b0000 {
+		non-removable;
+		mmc-pwrseq = <&wifi_pwrseq>;
+		vmmc-supply = <&palmas_smps9>;
+		bus-width = <4>;
+		vqmmc-supply = <&palmas_smps8>;
+ 		status = "okay";
+	};
+};

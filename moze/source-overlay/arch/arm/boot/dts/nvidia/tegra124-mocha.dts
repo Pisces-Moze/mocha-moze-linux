@@ -1,0 +1,137 @@
+/*
+ * arch/arm/boot/dts/tegra124-mocha.dts
+ *
+ * Copyright (c) 2018, Alexandrov Dmirty.  All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+/dts-v1/;
+
+#include "tegra124.dtsi"
+#include "tegra124-mocha-mipi.dtsi"
+#include "tegra124-mocha-keys.dtsi"
+#include "tegra124-mocha-pinmux.dtsi"
+#include "tegra124-mocha-sdhci.dtsi"
+#include "tegra124-mocha-pmic.dtsi"
+#include "tegra124-mocha-fixed.dtsi"
+#include "tegra124-mocha-i2c.dtsi"
+#include "tegra124-mocha-display.dtsi"
+#include "tegra124-mocha-touchscreens.dtsi"
+#include "tegra124-mocha-usb.dtsi"
+#include "tegra124-mocha-power.dtsi"
+#include "tegra124-mocha-bluetooth.dtsi"
+#include "tegra124-mocha-identity.dtsi"
+
+/ {
+	model = "NVIDIA Tegra124 MOCHA";
+	compatible = "nvidia,mocha", "nvidia,tegra124";
+	nvidia,boardids = "1780:1100:3:A:7","1845:1000:0:A:7";
+
+	aliases {
+		rtc0 = "/i2c@7000d000/tps65913@58";
+		rtc1 = "/rtc@7000e000";
+	};
+
+	memory@80000000 {
+		reg = <0x0 0x80000000 0x0 0x7d000000>;
+	};
+
+	chosen {
+	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+	
+		pstore: pstore@fd400000 {
+			reg = <0 0xfd400000 0 0x200000>;
+			compatible = "ramoops";
+			record-size = <0x10000>;
+			console-size = <0x80000>;
+			pmsg-size = <0x40000>;
+			ftrace-size = <0x80000>;
+			rtrace-size = <0x80000>;
+			no-map;
+			status = "okay";
+		};
+	};
+	pwm@7000a000 {
+		status = "okay";
+	};
+
+	gpu@57000000 {
+		vdd-supply = <&vdd_gpu>;
+		status = "disabled";
+	};
+
+	/* CPU DFLL clock */
+	clock@70110000 {
+		status = "okay";
+		vdd-cpu-supply = <&vdd_cpu>;
+		nvidia,i2c-fs-rate = <400000>;
+	};
+
+	clocks {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		clk32k_in: clock@0 {
+			compatible = "fixed-clock";
+			reg = <0>;
+			#clock-cells = <0>;
+			clock-frequency = <32768>;
+		};
+	};
+
+	mipi: mipi@700e3000 {
+		status = "okay";
+	};
+	
+	uartd: serial@70006300 {
+		status = "okay";
+	};
+};
+
+/* Board wiring from the original Ubuntu DTB; hardware tests still required. */
+/ {
+    /* Exact function IDs from this tablet's Ubuntu DTB. Use the v0.1 binding
+     * so the vendor monitor is not assumed to support VERSION/FEATURES calls.
+     * CPU suspend/frequency scaling remain disabled for first bring-up.
+     */
+    psci {
+        compatible = "arm,psci";
+        method = "smc";
+        cpu_suspend = <0x84000001>;
+        cpu_on = <0x84000003>;
+        status = "okay";
+    };
+    sd_slot_power: regulator-sd-slot {
+        compatible = "regulator-fixed";
+        regulator-name = "mocha-sd-slot-3v3";
+        regulator-min-microvolt = <3300000>;
+        regulator-max-microvolt = <3300000>;
+        vin-supply = <&palmas_smps9>;
+        gpio = <&gpio TEGRA_GPIO(R, 0) GPIO_ACTIVE_HIGH>;
+        enable-active-high;
+        startup-delay-us = <5000>;
+    };
+    wifi_pwrseq: wifi-pwrseq {
+        compatible = "mmc-pwrseq-simple";
+        reset-gpios = <&gpio TEGRA_GPIO(X, 7) GPIO_ACTIVE_LOW>;
+        post-power-on-delay-ms = <200>;
+    };
+};

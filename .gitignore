@@ -166,3 +166,7 @@ sphinx_*/
 #
 /*
 !/debian/
+
+# Mocha local build products
+/moze/build/
+/moze/dist/

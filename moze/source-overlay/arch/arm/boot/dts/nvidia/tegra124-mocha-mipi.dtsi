@@ -1,0 +1,40 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/* Tegra124 DSI/MIPI resources from the pinned Mocha port, expressed with the
+ * address cells and clock/reset interfaces of Linux 6.12. Not hardware tested.
+ */
+/ {
+    host1x@50000000 {
+        dsi@54300000 {
+            compatible = "nvidia,tegra124-dsi";
+            reg = <0 0x54300000 0 0x40000>;
+            clocks = <&tegra_car TEGRA124_CLK_DSIA>,
+                     <&tegra_car TEGRA124_CLK_DSIALP>,
+                     <&tegra_car TEGRA124_CLK_PLL_D_OUT0>;
+            clock-names = "dsi", "lp", "parent";
+            resets = <&tegra_car 48>;
+            reset-names = "dsi";
+            nvidia,mipi-calibrate = <&mipi 0x060>;
+            #address-cells = <1>;
+            #size-cells = <0>;
+        };
+        dsi@54400000 {
+            compatible = "nvidia,tegra124-dsi";
+            reg = <0 0x54400000 0 0x40000>;
+            clocks = <&tegra_car TEGRA124_CLK_DSIB>,
+                     <&tegra_car TEGRA124_CLK_DSIBLP>,
+                     <&tegra_car TEGRA124_CLK_PLL_D_OUT0>;
+            clock-names = "dsi", "lp", "parent";
+            resets = <&tegra_car 82>;
+            reset-names = "dsi";
+            nvidia,mipi-calibrate = <&mipi 0x180>;
+            #address-cells = <1>;
+            #size-cells = <0>;
+        };
+    };
+    mipi: mipi@700e3000 {
+        compatible = "nvidia,tegra124-mipi";
+        reg = <0 0x700e3000 0 0x100>;
+        clocks = <&tegra_car TEGRA124_CLK_MIPI_CAL>;
+        #nvidia,mipi-calibrate-cells = <1>;
+    };
+};
