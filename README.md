@@ -37,3 +37,7 @@ earlycon/head/init诊断用于在时钟/PMIC初始化前保留可读屏幕日志
 panel-sharp和tegra/dsi实现双链路、LP命令时钟、ganged布局和短DCS返回长度处理；native色块通过，但Niri fence仍崩溃。
 
 外置背光/音频实验放[drivers](https://github.com/Pisces-Moze/mocha-moze-drivers)。安装/问题/状态统一见[总入口](https://github.com/Pisces-Moze/mocha-moze-debian)。
+
+原生实验使用独立release `6.12.111-moze.1-native`，不能加载稳定profile的模块。构建显式设置LOCALVERSION为空，避免无上游tag的源码快照自动加“+”。安装模块时剥离debug信息控制小APP分区占用；构建目录保留原始调试文件。
+
+此次发布验证：稳定/实验DTS编译通过，stable olddefconfig输出6.12.111-moze.1；新品牌版本尚未完成完整内核重编译及实机重新刷机。完整源码在Git中保留，Windows本地使用sparse checkout，仅展开moze与根目录文件，避免大小写碰撞；Linux开发者普通clone会获得完整树。
