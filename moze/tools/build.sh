@@ -7,6 +7,10 @@ case "$profile" in stable) name=stable-desktop;; native) name=native-experimenta
 mkdir -p "$out"
 cp "$tree/moze/configs/$name.config" "$out/.config"
 make -C "$tree" O="$out" ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- olddefconfig
+# COREDUMP alone does not enable ELF userspace core files on ARM.
+for option in CONFIG_BINFMT_ELF CONFIG_COREDUMP CONFIG_ELF_CORE; do
+ grep -qx "$option=y" "$out/.config" || { echo "Missing core-dump prerequisite: $option" >&2; exit 1; }
+done
 make -C "$tree" O="$out" ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- -j"${JOBS:-4}" Image modules
 make -C "$tree" O="$out" ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- INSTALL_MOD_PATH="$out/modules" INSTALL_MOD_STRIP=1 modules_install
 dtc -I dts -O dtb -o "$out/mocha.dtb" "$tree/moze/dts/$name.dts"

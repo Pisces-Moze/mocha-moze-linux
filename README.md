@@ -117,7 +117,7 @@ bash moze/tools/build.sh native ../artifacts/native
 
 ## 验证范围与当前状态
 
-本次发布只验证到源码级别，没有重新构建并刷机：
+2026-10-08 的发布只验证到源码级别，没有重新构建并刷机：
 
 | 检查 | 结果 |
 |---|---|
@@ -126,7 +126,11 @@ bash moze/tools/build.sh native ../artifacts/native
 | 源码树 | 86,744 个 Git 跟踪文件，上游基线与 Mocha 改动、规范化构建提交相互分离 |
 | 改名后的内核 | 没有重新走完整流程刷机验收 |
 
+2026-10-09 继续诊断时，原型机 `/proc/config.gz` 确认 `CONFIG_BINFMT_ELF=y`、`CONFIG_COREDUMP=y`，但 `CONFIG_ELF_CORE` 关闭。这解释了历史 Niri 崩溃没有生成 ELF core 文件。现已把 stable 与 native 两套公开配置中的 `CONFIG_ELF_CORE` 改为 `y`，构建脚本在 `olddefconfig` 后检查上述三个选项，防止再次构建出无法保存用户程序 core 的内核。`smp-base.config` 保持历史对照。两份新配置已在 Debian 13／GCC 14.2.0 构建主机上通过 `olddefconfig`，三个选项均保留为 `y`；截至 2026-10-10，stable/native 的 Image/uImage、模块与 DTB 完整构建均通过，两个 vmlinux 都包含 `elf_core_dump`；实际 release 分别为 `6.12.111-moze.1` 与 `6.12.111-moze.1-native`。后续 RAM 启动与实机 core 捕获结果见下方 2026-10-10 记录，不能沿用上表的旧配置验证结果。捕获 core 时指定数据分区或 `/tmp` 的私有目录并控制大小；不要让 core 占满 APP，也不要把 core 提交到仓库。
+
 实机状态按总入口的状态表汇总，与内核和 DTS 有关的部分是这样：四核 CPU 0–3 上线、逐核负载与冷启动通过，用的是原厂 TLK SMC，CPU DVFS 尚未启用；默认显示冷启动、横屏、触控、亮度通过，simpledrm 输出仍有同步与 CPU 拷贝开销；原生 Tegra 双 DSI 下 GPU 线性 DMA-BUF 色块实机可见、约 29.8 FPS，Niri 原生桌面仍 SIGSEGV；Nouveau NVEA / GK20A 硬件着色器通过，固件需要自行提取，DVFS 与热管理未完成；Wi-Fi BCM4354 可用；音频未完成；摄像头、OTG、休眠未适配。
+
+2026-10-10 后续 RAM 实测：上述 stable/native 两套新内核均成功启动，USB SSH 可用、CPU 0–3 在线、三个 core 选项均为 y。受控 SIGSEGV 在 RAM `/tmp` 各生成 327680 字节 ELF32/ET_CORE/EM_ARM 文件，大小、头部与 SHA256 已保存；捕获时 eMMC 只读且未挂载。stable Linux 日志画面由用户确认正常；native 显示的单独诊断见总入口的 [RAM 记录](https://github.com/Pisces-Moze/mocha-moze-debian/blob/codex/mocha-diagnostics-2026-10-09/docs/DIAGNOSTICS-2026-10-10.md)。core 捕获已通过，完整安装和原生桌面验收仍未完成。
 
 编译通过不等于实机通过，DTB 编出来也不等于外设跑起来。内核侧的结论以实机屏幕、`uname`、四核上线和 journal 为准。
 
