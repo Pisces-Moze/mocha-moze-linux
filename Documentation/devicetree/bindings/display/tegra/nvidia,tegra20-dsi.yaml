@@ -83,6 +83,16 @@ properties:
       gang up with in order to support up to 8 data lanes
     $ref: /schemas/types.yaml#/definitions/phandle
 
+  nvidia,ganged-mode-swap-links:
+    description: Swap the horizontal halves in symmetrical left-right ganged
+      mode. The controller owning the panel receives the right half and the
+      second controller receives the left half, without changing panel control
+      ownership or the DSI master/slave relationship.
+    type: boolean
+
+dependencies:
+  nvidia,ganged-mode-swap-links: [nvidia,ganged-mode]
+
 allOf:
   - $ref: ../dsi-controller.yaml#
   - if:

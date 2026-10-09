@@ -640,15 +640,19 @@ static void tegra_dsi_configure(struct tegra_dsi *dsi, unsigned int pipe,
 	}
 
 	if (dsi->slave) {
+		unsigned int width = mode->hdisplay / 2;
+		bool swap = of_property_read_bool(dsi->dev->of_node,
+						 "nvidia,ganged-mode-swap-links");
+
 		tegra_dsi_configure(dsi->slave, pipe, mode);
 
 		/*
 		 * TODO: Support modes other than symmetrical left-right
 		 * split.
 		 */
-		tegra_dsi_ganged_enable(dsi, 0, mode->hdisplay / 2);
-		tegra_dsi_ganged_enable(dsi->slave, mode->hdisplay / 2,
-					mode->hdisplay / 2);
+		/* Panel control ownership need not follow physical left/right order. */
+		tegra_dsi_ganged_enable(dsi, swap ? width : 0, width);
+		tegra_dsi_ganged_enable(dsi->slave, swap ? 0 : width, width);
 	}
 }
 
