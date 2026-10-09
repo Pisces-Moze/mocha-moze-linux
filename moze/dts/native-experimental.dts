@@ -594,7 +594,6 @@
 		};
 
 		dsi@54300000 {
-			nvidia,ganged-mode = <0x36>;
 			assigned-clock-rates = <0xb71b00>;
 			assigned-clock-parents = <0x03 0xc9>;
 			assigned-clocks = <0x03 0x93>;
@@ -612,12 +611,6 @@
 			phandle = <0x0b>;
 
 			panel@0 {
-				backlight = <0x0e>;
-				reset-gpios = <0x0d 0x3b 0x01>;
-				vddio-supply = <0x06>;
-				vsn-supply = <0x08>;
-				vsp-supply = <0x07>;
-				link2 = <0x37>;
 				compatible = "sharp,lq079l1sx01";
 				reg = <0x00>;
 				phandle = <0x0c>;
@@ -625,7 +618,8 @@
 		};
 
 		dsi@54400000 {
-			phandle = <0x36>;
+			/* Keep the working panel control host; only swap scanout halves. */
+			nvidia,ganged-mode-swap-links;
 			assigned-clock-rates = <0xb71b00>;
 			assigned-clock-parents = <0x03 0xc9>;
 			assigned-clocks = <0x03 0x94>;
@@ -641,8 +635,15 @@
 			status = "okay";
 			avdd-dsi-csi-supply = <0x09>;
 
+			nvidia,ganged-mode = <0x0b>;
+
 			panel@0 {
-				phandle = <0x37>;
+				backlight = <0x0e>;
+				reset-gpios = <0x0d 0x3b 0x01>;
+				vddio-supply = <0x06>;
+				vsn-supply = <0x08>;
+				vsp-supply = <0x07>;
+				link2 = <0x0c>;
 				compatible = "sharp,lq079l1sx01";
 				reg = <0x00>;
 			};

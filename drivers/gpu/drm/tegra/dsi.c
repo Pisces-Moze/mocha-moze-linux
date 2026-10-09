@@ -640,15 +640,17 @@ static void tegra_dsi_configure(struct tegra_dsi *dsi, unsigned int pipe,
 	}
 
 	if (dsi->slave) {
+		unsigned int width = mode->hdisplay / 2;
+
 		tegra_dsi_configure(dsi->slave, pipe, mode);
 
 		/*
 		 * TODO: Support modes other than symmetrical left-right
 		 * split.
 		 */
-		tegra_dsi_ganged_enable(dsi, 0, mode->hdisplay / 2);
-		tegra_dsi_ganged_enable(dsi->slave, mode->hdisplay / 2,
-					mode->hdisplay / 2);
+		/* Keep the controller's startup split until both video links run. */
+		tegra_dsi_ganged_enable(dsi, 0, width);
+		tegra_dsi_ganged_enable(dsi->slave, width, width);
 	}
 }
 
@@ -991,6 +993,17 @@ static void tegra_dsi_encoder_enable(struct drm_encoder *encoder)
 
 	if (output->panel)
 		drm_panel_enable(output->panel);
+
+	if (dsi->slave && of_property_read_bool(dsi->dev->of_node,
+					      "nvidia,ganged-mode-swap-links")) {
+		/* Mocha blanks if the swapped split is used to start video.
+		 * Apply the verified scanout correction after a 30 Hz frame,
+		 * leaving panel commands and startup ownership unchanged.
+		 */
+		msleep(40);
+		tegra_dsi_writel(dsi->slave, 0, DSI_GANGED_MODE_START);
+		tegra_dsi_writel(dsi, mode->hdisplay / 2, DSI_GANGED_MODE_START);
+	}
 }
 
 static int
@@ -1183,12 +1196,27 @@ static int tegra_dsi_runtime_resume(struct host1x_client *client)
 		goto disable_clk;
 	}
 
+	/*
+	 * U-Boot leaves Mocha's DSI modules out of reset. Merely deasserting
+	 * reset on the first resume retains state that an OFF/ON cycle clears.
+	 * Give each link the same reset assertion as runtime suspend before
+	 * calibration and panel commands. Other boards keep their old sequence.
+	 */
+	if (dsi->rst && of_machine_is_compatible("nvidia,mocha")) {
+		err = reset_control_assert(dsi->rst);
+		if (err < 0) {
+			dev_err(dev, "cannot assert startup reset: %d\n", err);
+			goto disable_clk_lp;
+		}
+		dev_info(dev, "MOCHA_DSI_RESET: asserting before resume\n");
+	}
+
 	usleep_range(1000, 2000);
 
 	if (dsi->rst) {
 		err = reset_control_deassert(dsi->rst);
 		if (err < 0) {
-			dev_err(dev, "cannot assert reset: %d\n", err);
+			dev_err(dev, "cannot deassert reset: %d\n", err);
 			goto disable_clk_lp;
 		}
 	}
