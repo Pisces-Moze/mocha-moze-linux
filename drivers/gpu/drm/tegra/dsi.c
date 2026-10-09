@@ -1196,12 +1196,27 @@ static int tegra_dsi_runtime_resume(struct host1x_client *client)
 		goto disable_clk;
 	}
 
+	/*
+	 * U-Boot leaves Mocha's DSI modules out of reset. Merely deasserting
+	 * reset on the first resume retains state that an OFF/ON cycle clears.
+	 * Give each link the same reset assertion as runtime suspend before
+	 * calibration and panel commands. Other boards keep their old sequence.
+	 */
+	if (dsi->rst && of_machine_is_compatible("nvidia,mocha")) {
+		err = reset_control_assert(dsi->rst);
+		if (err < 0) {
+			dev_err(dev, "cannot assert startup reset: %d\n", err);
+			goto disable_clk_lp;
+		}
+		dev_info(dev, "MOCHA_DSI_RESET: asserting before resume\n");
+	}
+
 	usleep_range(1000, 2000);
 
 	if (dsi->rst) {
 		err = reset_control_deassert(dsi->rst);
 		if (err < 0) {
-			dev_err(dev, "cannot assert reset: %d\n", err);
+			dev_err(dev, "cannot deassert reset: %d\n", err);
 			goto disable_clk_lp;
 		}
 	}
