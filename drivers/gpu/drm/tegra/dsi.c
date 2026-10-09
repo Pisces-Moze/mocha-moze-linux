@@ -641,8 +641,6 @@ static void tegra_dsi_configure(struct tegra_dsi *dsi, unsigned int pipe,
 
 	if (dsi->slave) {
 		unsigned int width = mode->hdisplay / 2;
-		bool swap = of_property_read_bool(dsi->dev->of_node,
-						 "nvidia,ganged-mode-swap-links");
 
 		tegra_dsi_configure(dsi->slave, pipe, mode);
 
@@ -650,9 +648,9 @@ static void tegra_dsi_configure(struct tegra_dsi *dsi, unsigned int pipe,
 		 * TODO: Support modes other than symmetrical left-right
 		 * split.
 		 */
-		/* Panel control ownership need not follow physical left/right order. */
-		tegra_dsi_ganged_enable(dsi, swap ? width : 0, width);
-		tegra_dsi_ganged_enable(dsi->slave, swap ? 0 : width, width);
+		/* Keep the controller's startup split until both video links run. */
+		tegra_dsi_ganged_enable(dsi, 0, width);
+		tegra_dsi_ganged_enable(dsi->slave, width, width);
 	}
 }
 
@@ -995,6 +993,17 @@ static void tegra_dsi_encoder_enable(struct drm_encoder *encoder)
 
 	if (output->panel)
 		drm_panel_enable(output->panel);
+
+	if (dsi->slave && of_property_read_bool(dsi->dev->of_node,
+					      "nvidia,ganged-mode-swap-links")) {
+		/* Mocha blanks if the swapped split is used to start video.
+		 * Apply the verified scanout correction after a 30 Hz frame,
+		 * leaving panel commands and startup ownership unchanged.
+		 */
+		msleep(40);
+		tegra_dsi_writel(dsi->slave, 0, DSI_GANGED_MODE_START);
+		tegra_dsi_writel(dsi, mode->hdisplay / 2, DSI_GANGED_MODE_START);
+	}
 }
 
 static int
