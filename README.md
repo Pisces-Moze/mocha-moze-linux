@@ -128,11 +128,11 @@ bash moze/tools/build.sh native ../artifacts/native
 
 2026-10-09 继续诊断时，原型机 `/proc/config.gz` 确认 `CONFIG_BINFMT_ELF=y`、`CONFIG_COREDUMP=y`，但 `CONFIG_ELF_CORE` 关闭。这解释了历史 Niri 崩溃没有生成 ELF core 文件。现已把 stable 与 native 两套公开配置中的 `CONFIG_ELF_CORE` 改为 `y`，构建脚本在 `olddefconfig` 后检查上述三个选项，防止再次构建出无法保存用户程序 core 的内核。`smp-base.config` 保持历史对照。两份新配置已在 Debian 13／GCC 14.2.0 构建主机上通过 `olddefconfig`，三个选项均保留为 `y`；截至 2026-10-10，stable/native 的 Image/uImage、模块与 DTB 完整构建均通过，两个 vmlinux 都包含 `elf_core_dump`；实际 release 分别为 `6.12.111-moze.1` 与 `6.12.111-moze.1-native`。后续 RAM 启动与实机 core 捕获结果见下方 2026-10-10 记录，不能沿用上表的旧配置验证结果。捕获 core 时指定数据分区或 `/tmp` 的私有目录并控制大小；不要让 core 占满 APP，也不要把 core 提交到仓库。
 
-实机状态按总入口的状态表汇总，与内核和 DTS 有关的部分是这样：四核 CPU 0–3 上线、逐核负载与冷启动通过，用的是原厂 TLK SMC，CPU DVFS 尚未启用；默认显示冷启动、横屏、触控、亮度通过，simpledrm 输出仍有同步与 CPU 拷贝开销；原生 Tegra 双 DSI 下 GPU 线性 DMA-BUF 色块实机可见、约 29.8 FPS，Niri 原生桌面仍 SIGSEGV；Nouveau NVEA / GK20A 硬件着色器通过，固件需要自行提取，DVFS 与热管理未完成；Wi-Fi BCM4354 可用；音频未完成；摄像头、OTG、休眠未适配。
+实机状态按总入口的状态表汇总，与内核和 DTS 有关的部分是这样：四核 CPU 0–3 上线、逐核负载与冷启动通过，用的是原厂 TLK SMC，CPU DVFS 尚未启用；默认显示冷启动、横屏、触控、亮度通过，simpledrm 输出仍有同步与 CPU 拷贝开销；原生 Tegra 双 DSI 下 GPU 线性 DMA-BUF 色块实机可见、约 29.8 FPS，旧系统 Mesa 下 Niri 曾 SIGSEGV；候选 Mesa 配合原始内核＋手动校正的 RAM Niri 画面已确认正常；Nouveau NVEA / GK20A 硬件着色器通过，固件需要自行提取，DVFS 与热管理未完成；Wi-Fi BCM4354 可用；音频未完成；摄像头、OTG、休眠未适配。
 
 2026-10-10 后续 RAM 实测：上述 stable/native 两套新内核均成功启动，USB SSH 可用、CPU 0–3 在线、三个 core 选项均为 y。受控 SIGSEGV 在 RAM `/tmp` 各生成 327680 字节 ELF32/ET_CORE/EM_ARM 文件，大小、头部与 SHA256 已保存；捕获时 eMMC 只读且未挂载。stable Linux 日志画面由用户确认正常；native 显示的单独诊断见总入口的 [RAM 记录](https://github.com/Pisces-Moze/mocha-moze-debian/blob/codex/mocha-diagnostics-2026-10-09/docs/DIAGNOSTICS-2026-10-10.md)。core 捕获已通过，完整安装和原生桌面验收仍未完成。
 
-后续同内核 RAM 对照恢复 native5 的 DSI-B 主机／面板控制归属后，用户确认色块可见但左右交换，控制台从中间开始；仅把 DSI-A/B 横向起点改为 0/768 后，用户确认位置正常。因此 native DTS 保留 DSI-B 主机和 12 MHz LP 时钟，新增本地绑定 `nvidia,ganged-mode-swap-links`，尝试让驱动在每次 modeset 时交换扫描半屏，避免以交换控制主从来修正画面。属性缺省时保留原有左右分段；stable DTS 不变。两版候选的内核、模块与 DTB 完整构建均通过，但自动应用的 RAM 实测均失败：视频 enable 前校正黑屏；保留原始分段启动视频、enable 后等待 40 ms 再校正也黑屏。两次起点读数均正确，不能据此标记修复通过。当前分支仍为实验候选，下一步使用同一个新内核与此前可显示的无校正 native5 DTB 做对照；GPU/Niri 验收待完成。
+后续同内核 RAM 对照恢复 native5 的 DSI-B 主机／面板控制归属后，用户确认色块可见但左右交换，控制台从中间开始；仅把 DSI-A/B 横向起点改为 0/768 后，用户确认位置正常。因此 native DTS 保留 DSI-B 主机和 12 MHz LP 时钟，新增本地绑定 `nvidia,ganged-mode-swap-links`，尝试让驱动在每次 modeset 时交换扫描半屏，避免以交换控制主从来修正画面。属性缺省时保留原有左右分段；stable DTS 不变。两版候选的内核、模块与 DTB 完整构建均通过，但自动应用的 RAM 实测均失败：视频 enable 前校正黑屏；保留原始分段启动视频、enable 后等待 40 ms 再校正也黑屏。两次起点读数均正确，不能据此标记修复通过。同一个新内核使用此前可显示的无校正 native5 DTB 也黑屏，原始内核＋相同 DTB 则再次显示成功。原始组合手动校正后，GPU 色块与候选 Mesa 下的 Niri＋终端已由用户确认正常，仍不能称自动方案通过。当前分支为实验候选，构建机正用原始 DSI C 源码重新构建作对照；新镜像失败原因与完整桌面验收仍待完成。
 
 编译通过不等于实机通过，DTB 编出来也不等于外设跑起来。内核侧的结论以实机屏幕、`uname`、四核上线和 journal 为准。
 
@@ -141,8 +141,8 @@ bash moze/tools/build.sh native ../artifacts/native
 | 事项 | 现状 | 出处 |
 |---|---|---|
 | CPU DVFS、热管理、suspend | 四核上线不代表这些完成；CPU/GPU 调频与超频保持未启用 | `arch/arm/mach-tegra/reset.c` 的改动范围、总入口 `docs/STATUS.md` |
-| 原生显示路径默认化 | native 配置与 DTS 仍是实验，Niri 在 Mesa 的 `tegra_fence_server_sync` 调用点崩溃，尚未替换默认路径 | `moze/configs/native-experimental.config`、总入口 `docs/ISSUES.md` |
-| 左右链路的最终画面 | 寄存器读数正确（`54300000` start0、`54400000` start768），控制台起点、换行、stride 与格式未完成 | 总入口 `docs/ISSUES.md` |
+| 原生显示路径默认化 | 候选 Mesa 的独立 RAM Niri 画面通过；新内核自动分段黑屏，完整桌面未验收，尚未替换默认路径 | `moze/configs/native-experimental.config`、总入口 `docs/ISSUES.md` |
+| 左右链路的最终画面 | 原始内核手动设置 A=0/B=768 后画面正常；新镜像自动方案仍黑屏，寄存器读数不能代替实测 | 总入口 `docs/ISSUES.md` |
 | Tegra124 硬件编解码 | VDE 的非标准 tile 布局没有完整格式，只有软件解码可用 | 总入口 `docs/ISSUES.md` |
 | 音频 | RT5671 在 `0x1c` 返回 NACK，ALSA 无卡；树内的 RT5670 codec 只作接口参考 | `drivers/` 树内 codec 与本仓库配置、总入口 `docs/ISSUES.md` |
 | 蓝牙、摄像头、OTG、休眠 | 现代内核的 UART、固件、GPIO 与配对待完成；控制器、传感器、VBUS 与恢复链路待适配 | 总入口 `docs/STATUS.md` |
