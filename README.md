@@ -132,7 +132,7 @@ bash moze/tools/build.sh native ../artifacts/native
 
 2026-10-10 后续 RAM 实测：上述 stable/native 两套新内核均成功启动，USB SSH 可用、CPU 0–3 在线、三个 core 选项均为 y。受控 SIGSEGV 在 RAM `/tmp` 各生成 327680 字节 ELF32/ET_CORE/EM_ARM 文件，大小、头部与 SHA256 已保存；捕获时 eMMC 只读且未挂载。stable Linux 日志画面由用户确认正常；native 显示的单独诊断见总入口的 [RAM 记录](https://github.com/Pisces-Moze/mocha-moze-debian/blob/codex/mocha-diagnostics-2026-10-09/docs/DIAGNOSTICS-2026-10-10.md)。core 捕获已通过，完整安装和原生桌面验收仍未完成。
 
-后续同内核 RAM 对照恢复 native5 的 DSI-B 主机／面板控制归属后，用户确认色块可见但左右交换，控制台从中间开始；仅把 DSI-A/B 横向起点改为 0/768 后，用户确认位置正常。因此 native DTS 保留 DSI-B 主机和 12 MHz LP 时钟，新增本地绑定 `nvidia,ganged-mode-swap-links`，让驱动在每次 modeset 时交换扫描半屏，避免以交换控制主从来修正画面。属性缺省时保留原有左右分段；stable DTS 不变。该修复内核正在构建，自动应用后的 RAM 验收尚待完成。
+后续同内核 RAM 对照恢复 native5 的 DSI-B 主机／面板控制归属后，用户确认色块可见但左右交换，控制台从中间开始；仅把 DSI-A/B 横向起点改为 0/768 后，用户确认位置正常。因此 native DTS 保留 DSI-B 主机和 12 MHz LP 时钟，新增本地绑定 `nvidia,ganged-mode-swap-links`，让驱动在每次 modeset 时交换扫描半屏，避免以交换控制主从来修正画面。属性缺省时保留原有左右分段；stable DTS 不变。该修复内核、模块与 DTB 已完整构建通过，自动应用后的 RAM 验收尚待完成。
 
 编译通过不等于实机通过，DTB 编出来也不等于外设跑起来。内核侧的结论以实机屏幕、`uname`、四核上线和 journal 为准。
 
