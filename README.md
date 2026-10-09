@@ -130,6 +130,8 @@ bash moze/tools/build.sh native ../artifacts/native
 
 实机状态按总入口的状态表汇总，与内核和 DTS 有关的部分是这样：四核 CPU 0–3 上线、逐核负载与冷启动通过，用的是原厂 TLK SMC，CPU DVFS 尚未启用；默认显示冷启动、横屏、触控、亮度通过，simpledrm 输出仍有同步与 CPU 拷贝开销；原生 Tegra 双 DSI 下 GPU 线性 DMA-BUF 色块实机可见、约 29.8 FPS，Niri 原生桌面仍 SIGSEGV；Nouveau NVEA / GK20A 硬件着色器通过，固件需要自行提取，DVFS 与热管理未完成；Wi-Fi BCM4354 可用；音频未完成；摄像头、OTG、休眠未适配。
 
+2026-10-10 后续 RAM 实测：上述 stable/native 两套新内核均成功启动，USB SSH 可用、CPU 0–3 在线、三个 core 选项均为 y。受控 SIGSEGV 在 RAM `/tmp` 各生成 327680 字节 ELF32/ET_CORE/EM_ARM 文件，大小、头部与 SHA256 已保存；捕获时 eMMC 只读且未挂载。stable Linux 日志画面由用户确认正常；native 显示的单独诊断见总入口的 [RAM 记录](https://github.com/Pisces-Moze/mocha-moze-debian/blob/codex/mocha-diagnostics-2026-10-09/docs/DIAGNOSTICS-2026-10-10.md)。core 捕获已通过，完整安装和原生桌面验收仍未完成。
+
 编译通过不等于实机通过，DTB 编出来也不等于外设跑起来。内核侧的结论以实机屏幕、`uname`、四核上线和 journal 为准。
 
 ## 未实现与计划
