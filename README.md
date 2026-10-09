@@ -130,7 +130,7 @@ bash moze/tools/build.sh native ../artifacts/native
 
 实机状态按总入口的状态表汇总，与内核和 DTS 有关的部分是这样：四核 CPU 0–3 上线、逐核负载与冷启动通过，用的是原厂 TLK SMC，CPU DVFS 尚未启用；默认显示冷启动、横屏、触控、亮度通过，simpledrm 输出仍有同步与 CPU 拷贝开销；原生 Tegra 双 DSI 下 GPU 线性 DMA-BUF 色块实机可见、约 29.8 FPS，Niri 原生桌面仍 SIGSEGV；Nouveau NVEA / GK20A 硬件着色器通过，固件需要自行提取，DVFS 与热管理未完成；Wi-Fi BCM4354 可用；音频未完成；摄像头、OTG、休眠未适配。
 
-2026-10-10 后续 RAM 实测：上述 stable/native 两套新内核均成功启动，USB SSH 可用、CPU 0–3 在线、三个 core 选项均为 y。受控 SIGSEGV 在 RAM `/tmp` 各生成 327680 字节 ELF32/ET_CORE/EM_ARM 文件，大小、头部与 SHA256 已保存；捕获时 eMMC 只读且未挂载。stable Linux 日志画面由用户确认正常；native 加载匹配的背光模块后 DRM connected/enabled，CPU/GPU 色块仍只有背光、黑屏。core 捕获已通过，原生显示和 Niri 验收仍未完成。完整记录见总入口的 [RAM 诊断](https://github.com/Pisces-Moze/mocha-moze-debian/blob/codex/mocha-diagnostics-2026-10-09/docs/DIAGNOSTICS-2026-10-10.md)。
+2026-10-10 后续 RAM 实测：上述 stable/native 两套新内核均成功启动，USB SSH 可用、CPU 0–3 在线、三个 core 选项均为 y。受控 SIGSEGV 在 RAM `/tmp` 各生成 327680 字节 ELF32/ET_CORE/EM_ARM 文件，大小、头部与 SHA256 已保存；捕获时 eMMC 只读且未挂载。stable Linux 日志画面由用户确认正常；native 显示的单独诊断见总入口的 [RAM 记录](https://github.com/Pisces-Moze/mocha-moze-debian/blob/codex/mocha-diagnostics-2026-10-09/docs/DIAGNOSTICS-2026-10-10.md)。core 捕获已通过，完整安装和原生桌面验收仍未完成。
 
 后续同内核 RAM 对照恢复 native5 的 DSI-B 主机／面板控制归属后，用户确认色块可见但左右交换，控制台从中间开始；仅把 DSI-A/B 横向起点改为 0/768 后，用户确认位置正常。因此 native DTS 保留 DSI-B 主机和 12 MHz LP 时钟，新增本地绑定 `nvidia,ganged-mode-swap-links`，让驱动在每次 modeset 时交换扫描半屏，避免以交换控制主从来修正画面。属性缺省时保留原有左右分段；stable DTS 不变。该修复内核正在构建，自动应用后的 RAM 验收尚待完成。
 
