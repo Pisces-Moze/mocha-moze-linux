@@ -15,5 +15,5 @@
 ## 提交前自查
 
 - 没有把构建产物（`uImage`、`Image`、`mocha.dtb`、`modules/`、`SHA256SUMS`）带进提交。
-- `moze/source-provenance.json` 的 36 条 `changed_paths` 与实际改动仍然一致。
+- `moze/source-provenance.json` 的 `changed_paths` 与实际改动仍然一致。
 - 外置模块（背光、音频）仍然能在这次构建的 `O=` 目录上编译；跨 release 的 `.ko` 不写进文档当作可用。

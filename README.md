@@ -71,6 +71,8 @@ Linux 原生的 `arch/`、`drivers/`、`include/`、`kernel/` 等目录保持完
 
 2026-10-15：修正挂载／模块顺序后，开启 DFLL 的版本也进入 Debian，CPUFreq policy 已建立。但请求 204 MHz、上限 612 MHz 时，DFLL monitor 和独立 PMU 用户态周期计数均约 1.85–1.9 GHz，不能把 CCF 缓存的频率当作实际限频成功。已停止桌面／升频测试，候选不提升为默认；闭环、scaler 和 PMIC I2C/LUT 控制仍需定位。
 
+后续源码检查发现 Palmas SMPS 的分段电压表不提供 `uV_step`，通用 `regulator_get_linear_step()` 因而返回零，而 DFLL 电压索引计算需要正步长。候选改为从受板级约束的有效电压项推导均匀步长，跳过零项与重复平台，拒绝非均匀／倒序／单电压表；不增加频率或电压状态。`python3 moze/tools/test-dfll-alignment.py` 直接编译实际驱动函数的十项回归通过。该线索及修复尚需 RAM 实机验证，不能据此宣称 DFLL 已修复。
+
 两份设备树的完整逐行比对结果：stable 3330 行，native 3341 行，**差异只有 23 行**。差异集中在五处：
 
 - native 给 `dsi@54300000` 与 `dsi@54400000` 各加了三行 `assigned-clock-rates = <0xb71b00>`（12 MHz）、`assigned-clock-parents`、`assigned-clocks`，这就是 `native-lp-clock.patch` 记下的改动；LP 命令阶段的频率从 68 MHz 换成已验证 U-Boot 命令阶段的 12 MHz 之后，屏幕才出现 GPU 色块。
