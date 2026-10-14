@@ -69,6 +69,8 @@ Linux 原生的 `arch/`、`drivers/`、`include/`、`kernel/` 等目录保持完
 
 2026-10-14：完整候选构建完成。开启 DFLL 的试验未取得 SSH；同内核使用 DFLL 关闭的已验收 DTB 两次进入 Debian，CPU 固定 696 MHz，32 MiB 自有页的 LZ4 zram 压缩／读回通过。CPU DVFS、电压和 idle 仍未通过，不能将对照结果当作默认配置验收。若模块存放于数据分区，加载服务必须声明挂载依赖；早期 udev 不保证该路径已经可用。
 
+2026-10-15：修正挂载／模块顺序后，开启 DFLL 的版本也进入 Debian，CPUFreq policy 已建立。但请求 204 MHz、上限 612 MHz 时，DFLL monitor 和独立 PMU 用户态周期计数均约 1.85–1.9 GHz，不能把 CCF 缓存的频率当作实际限频成功。已停止桌面／升频测试，候选不提升为默认；闭环、scaler 和 PMIC I2C/LUT 控制仍需定位。
+
 两份设备树的完整逐行比对结果：stable 3330 行，native 3341 行，**差异只有 23 行**。差异集中在五处：
 
 - native 给 `dsi@54300000` 与 `dsi@54400000` 各加了三行 `assigned-clock-rates = <0xb71b00>`（12 MHz）、`assigned-clock-parents`、`assigned-clocks`，这就是 `native-lp-clock.patch` 记下的改动；LP 命令阶段的频率从 68 MHz 换成已验证 U-Boot 命令阶段的 12 MHz 之后，屏幕才出现 GPU 色块。
