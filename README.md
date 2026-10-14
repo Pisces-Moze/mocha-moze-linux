@@ -61,7 +61,13 @@ Linux 原生的 `arch/`、`drivers/`、`include/`、`kernel/` 等目录保持完
 
 两份 config 的其余关键项一致：`CONFIG_ARM_LPAE` 关闭（32 位非 LPAE）、`CONFIG_SMP=y`、`CONFIG_HIGHMEM=y`、`CONFIG_DRM_TEGRA=y`、`CONFIG_DRM_NOUVEAU=m`。配置里记录的编译器是 `arm-linux-gnueabihf-gcc (Debian 14.2.0-19) 14.2.0`（`CONFIG_GCC_VERSION=140200`）；native 配置开了 Rust 支持（`CONFIG_RUSTC_VERSION=109500`），stable 是 `CONFIG_RUSTC_VERSION=0`。
 
-`moze/configs/smp-base.config` 不属于这两套：它的 `CONFIG_LOCALVERSION` 是 `-mocha-experimental-fbdiag` 且开着 `LOCALVERSION_AUTO`，`build.sh` 只认 `stable` 和 `native`，要用这份配置得自己指定。
+`moze/configs/smp-base.config` 不属于这两套：它的 `CONFIG_LOCALVERSION` 是 `-mocha-experimental-fbdiag` 且开着 `LOCALVERSION_AUTO`，`build.sh` 支持 `stable`、`native` 和下述 `native-runtime`，要用这份旧配置得自己指定。
+
+新增的 `native-runtime` 是单独的运行时功耗验证候选，release 为 `6.12.111-moze.1-native-runtime`。它基于 native 配置合并 `moze/configs/native-runtime.fragment`，经 `olddefconfig` 生成最终配置，启用 Tegra124 CPUFreq、schedutil、CPU idle、LZ4 zram、PSI、MGLRU；`moze/dts/native-runtime.dts` 只重新开放 DFLL，沿用原厂 CVB speed-bin 频率／电压表。stable 和已验收 native 配置保持原样。
+
+构建命令为 `JOBS=8 bash moze/tools/build.sh native-runtime ../artifacts/native-runtime`。先使用临时 U-Boot 从 UDA 载入候选，并带 `cpuidle.off=1` 验证调频与 RAM 交换；C7 core power-off 和长期待机另外验收。背光、Nouveau、无线模块必须针对同一 release 重新编译。此候选不由构建脚本替换默认引导，运行时策略见 drivers 仓库的 `runtime/`。
+
+2026-10-14：完整候选构建完成。开启 DFLL 的试验未取得 SSH；同内核使用 DFLL 关闭的已验收 DTB 两次进入 Debian，CPU 固定 696 MHz，32 MiB 自有页的 LZ4 zram 压缩／读回通过。CPU DVFS、电压和 idle 仍未通过，不能将对照结果当作默认配置验收。若模块存放于数据分区，加载服务必须声明挂载依赖；早期 udev 不保证该路径已经可用。
 
 两份设备树的完整逐行比对结果：stable 3330 行，native 3341 行，**差异只有 23 行**。差异集中在五处：
 
