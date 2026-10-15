@@ -538,16 +538,61 @@ static int get_alignment_from_regulator(struct device *dev,
 					 struct rail_alignment *align)
 {
 	struct regulator *reg = regulator_get(dev, "vdd-cpu");
+	int i, count, voltage, previous = 0, ret = 0;
 
 	if (IS_ERR(reg))
 		return PTR_ERR(reg);
 
-	align->offset_uv = regulator_list_voltage(reg, 0);
 	align->step_uv = regulator_get_linear_step(reg);
+	if (align->step_uv) {
+		voltage = regulator_list_voltage(reg, 0);
+		if (voltage < 0) {
+			ret = voltage;
+			goto out;
+		}
+		align->offset_uv = voltage;
+		goto out;
+	}
 
+	/* Palmas describes SMPS voltages with linear ranges, so uV_step is
+	 * zero. Derive alignment from supported selectors instead of passing
+	 * zero into CVB rounding and DFLL LUT divisions. Require a uniform
+	 * positive step; do not invent a voltage grid for irregular tables.
+	 */
+	align->offset_uv = 0;
+	count = regulator_count_voltages(reg);
+	if (count < 0) {
+		ret = count;
+		goto out;
+	}
+	for (i = 0; i < count; i++) {
+		voltage = regulator_list_voltage(reg, i);
+		if (voltage < 0) {
+			ret = voltage;
+			goto out;
+		}
+		/* Zero selectors are unsupported or outside board constraints. */
+		if (!voltage)
+			continue;
+		if (!previous) {
+			align->offset_uv = voltage;
+		} else if (voltage != previous) {
+			if (voltage < previous ||
+			    (align->step_uv && voltage - previous != align->step_uv)) {
+				ret = -EINVAL;
+				goto out;
+			}
+			align->step_uv = voltage - previous;
+		}
+		previous = voltage;
+	}
+	if (!align->step_uv)
+		ret = -EINVAL;
+
+out:
 	regulator_put(reg);
 
-	return 0;
+	return ret;
 }
 
 static int tegra124_dfll_fcpu_probe(struct platform_device *pdev)

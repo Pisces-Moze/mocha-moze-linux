@@ -1,0 +1,17 @@
+/include/ "native-experimental.dts"
+
+/* Use the upstream Tegra CVB speed-bin voltage table and PMIC DFLL control.
+ * Do not replace it with a hand-written frequency/voltage or undervolt table.
+ */
+/ {
+	/* brcmfmac needs MMC_PM_KEEP_POWER across system suspend. Without
+	 * this host capability the non-removable card loses its firmware state.
+	 */
+	mmc@700b0000 {
+		keep-power-in-suspend;
+	};
+
+	clock@70110000 {
+		status = "okay";
+	};
+};
