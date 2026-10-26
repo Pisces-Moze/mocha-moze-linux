@@ -75,6 +75,7 @@ struct tegra_coded_fmt_desc {
 
 struct tegra_vde_soc {
 	bool supports_ref_pic_marking;
+	bool supports_block_linear;
 	const struct tegra_coded_fmt_desc *coded_fmts;
 	u32 num_coded_fmts;
 };
@@ -88,6 +89,8 @@ struct tegra_vde_bo {
 	dma_addr_t dma_handle;
 	dma_addr_t dma_addr;
 	void *dma_cookie;
+	struct page **cpu_pages;
+	unsigned int cpu_page_count;
 	size_t size;
 };
 
@@ -107,9 +110,12 @@ struct tegra_vde {
 	struct list_head map_list;
 	struct reset_control *rst;
 	struct reset_control *rst_mc;
+	struct reset_control *rst_bsev;
 	struct gen_pool *iram_pool;
 	struct completion decode_completion;
+	int irq;
 	struct clk *clk;
+	struct clk *clk_bsev;
 	struct iommu_domain *domain;
 	struct iommu_group *group;
 	struct iova_domain iova;
@@ -134,6 +140,7 @@ int tegra_vde_alloc_bo(struct tegra_vde *vde,
 		       enum dma_data_direction dma_dir,
 		       size_t size);
 void tegra_vde_free_bo(struct tegra_vde_bo *bo);
+int tegra_vde_alloc_cpu_bo(struct tegra_vde *vde, struct tegra_vde_bo **bo, size_t size);
 
 struct tegra_ctx_h264 {
 	const struct v4l2_ctrl_h264_decode_params *decode_params;
@@ -160,6 +167,7 @@ struct tegra_m2m_buffer {
 	dma_addr_t dma_addr[VB2_MAX_PLANES];
 	struct iova *iova[VB2_MAX_PLANES];
 	struct tegra_vde_bo *aux;
+	struct tegra_vde_bo *tiled[3];
 	bool b_frame;
 };
 

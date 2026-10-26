@@ -331,6 +331,8 @@ int __init of_setup_earlycon(const struct earlycon_id *match,
 
 /* Mocha RAM-only framebuffer boot console: fixed alias and VGA font. */
 #include <linux/font.h>
+/* Moze default-console background hook. */
+#include "moze-earlycon.h"
 static unsigned int mocha_fb_row = 16, mocha_fb_col;
 static void mocha_fb_newline(void)
 {
@@ -339,8 +341,11 @@ static void mocha_fb_newline(void)
     mocha_fb_col = 0;
     if (++mocha_fb_row >= 128)
         mocha_fb_row = 16;
-    for (i = 0; i < 1536 * 16; i++)
-        fb[mocha_fb_row * 16 * 1536 + i] = 0;
+    if (moze_early_enabled)
+        moze_early_clear(fb, mocha_fb_row);
+    else
+        for (i = 0; i < 1536 * 16; i++)
+            fb[mocha_fb_row * 16 * 1536 + i] = 0;
 }
 static void mocha_fb_write(struct console *con, const char *s, unsigned int n)
 {
@@ -358,17 +363,25 @@ static void mocha_fb_write(struct console *con, const char *s, unsigned int n)
             continue;
         }
         if (c == '\t') c = ' ';
+        if (moze_early_enabled)
+            moze_early_note(mocha_fb_col, mocha_fb_row, c);
         for (y = 0; y < 16; y++)
             for (x = 0; x < 8; x++)
                 fb[(mocha_fb_row * 16 + y) * 1536 + mocha_fb_col * 8 + x] =
-                    (font[c * 16 + y] & (0x80 >> x)) ? 0xffff : 0;
+                    (font[c * 16 + y] & (0x80 >> x)) ? 0xffff :
+                    moze_early_enabled ? moze_early_background(
+                        mocha_fb_col * 8 + x, mocha_fb_row * 16 + y) : 0;
         if (++mocha_fb_col >= 192)
             mocha_fb_newline();
     }
+    if (moze_early_enabled)
+        moze_early_tick(fb);
     asm volatile("dsb sy" ::: "memory");
 }
 static int __init mocha_fb_setup(struct earlycon_device *dev, const char *options)
 {
+    if (options && !strcmp(options, "moze"))
+        moze_early_init((volatile u16 *)0xfda00000);
     dev->con->write = mocha_fb_write;
     return 0;
 }

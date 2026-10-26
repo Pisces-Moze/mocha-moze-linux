@@ -83,6 +83,7 @@
 
 #include "fbcon.h"
 #include "fb_internal.h"
+#include "moze-fbcon.h"
 
 /*
  * FIXME: Locking
@@ -1031,6 +1032,7 @@ static void fbcon_init(struct vc_data *vc, bool init)
 		con2fb_map[vc->vc_num] = info_idx;
 
 	info = fbcon_info_from_console(vc->vc_num);
+	moze_native_attach(info);
 
 	if (logo_shown < 0 && console_loglevel <= CONSOLE_LOGLEVEL_QUIET)
 		logo_shown = FBCON_LOGO_DONTSHOW;
@@ -2898,6 +2900,7 @@ void fbcon_fb_unregistered(struct fb_info *info)
 	int i, idx;
 
 	console_lock();
+	moze_native_detach(info, false);
 
 	if (info->device && dev_is_pci(info->device))
 		vga_switcheroo_client_fb_set(to_pci_dev(info->device), NULL);

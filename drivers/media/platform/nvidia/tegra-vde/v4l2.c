@@ -15,12 +15,35 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 
+#include <linux/vmalloc.h>
+
 #include "vde.h"
+#include "tegra124-layout.h"
+
+static int tegra_try_scaling_matrix(struct v4l2_ctrl *ctrl)
+{
+	const struct v4l2_ctrl_h264_scaling_matrix *matrix = ctrl->p_new.p;
+
+	/* VDE uses the flat 4x4 matrix. Accept explicit flat matrices from
+	 * Request API clients, but never silently discard custom coefficients.
+	 * 8x8 transforms are rejected separately before starting hardware.
+	 */
+	return memchr_inv(matrix->scaling_list_4x4, 16,
+			  sizeof(matrix->scaling_list_4x4)) ? -EINVAL : 0;
+}
+
+static const struct v4l2_ctrl_ops tegra_scaling_matrix_ops = {
+	.try_ctrl = tegra_try_scaling_matrix,
+};
 
 static const struct v4l2_ctrl_config ctrl_cfgs[] = {
 	{	.id = V4L2_CID_STATELESS_H264_DECODE_PARAMS,	},
 	{	.id = V4L2_CID_STATELESS_H264_SPS,		},
 	{	.id = V4L2_CID_STATELESS_H264_PPS,		},
+	{
+		.id = V4L2_CID_STATELESS_H264_SCALING_MATRIX,
+		.ops = &tegra_scaling_matrix_ops,
+	},
 	{
 		.id = V4L2_CID_STATELESS_H264_DECODE_MODE,
 		.min = V4L2_STATELESS_H264_DECODE_MODE_FRAME_BASED,
@@ -139,6 +162,12 @@ static void __tegra_buf_cleanup(struct vb2_buffer *vb, unsigned int i)
 		}
 	}
 
+	for (i = 0; i < ARRAY_SIZE(tb->tiled); i++) {
+		if (tb->tiled[i]) {
+			tegra_vde_free_bo(tb->tiled[i]);
+			tb->tiled[i] = NULL;
+		}
+	}
 	if (tb->aux) {
 		tegra_vde_free_bo(tb->aux);
 		tb->aux = NULL;
@@ -167,6 +196,16 @@ static int tegra_buf_init(struct vb2_buffer *vb)
 			return err;
 	}
 
+	if (V4L2_TYPE_IS_CAPTURE(vq->type) && vde->soc->supports_block_linear) {
+		for (i = 0; i < ARRAY_SIZE(tb->tiled); i++) {
+			err = tegra_vde_alloc_cpu_bo(vde, &tb->tiled[i],
+						     ctx->decoded_fmt.fmt.pix_mp.plane_fmt[i].sizeimage);
+			if (err) {
+				__tegra_buf_cleanup(vb, 0);
+				return err;
+			}
+		}
+	}
 	if (V4L2_TYPE_IS_OUTPUT(vq->type))
 		dma_dir = DMA_TO_DEVICE;
 	else
@@ -266,6 +305,9 @@ static int tegra_buf_prepare(struct vb2_buffer *vb)
 				       hw_size - offset - size);
 		}
 
+		if (V4L2_TYPE_IS_CAPTURE(vq->type) && ctx->vde->soc->supports_block_linear &&
+		    (offset || !vb2_plane_vaddr(vb, i)))
+			return -EINVAL;
 		tb->dma_addr[i] = tb->dma_base[i] + offset;
 	}
 
@@ -381,12 +423,18 @@ static int tegra_queue_init(void *priv,
 	 * doesn't do that, hence kmap is needed for the coded data. It's not
 	 * needed for framebuffers.
 	 */
-	dma_attrs |= DMA_ATTR_NO_KERNEL_MAPPING;
+	if (!vde->soc->supports_block_linear)
+		dma_attrs |= DMA_ATTR_NO_KERNEL_MAPPING;
 
 	dst_vq->buf_struct_size = sizeof(struct tegra_m2m_buffer);
 	dst_vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
 	dst_vq->type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
-	dst_vq->io_modes = VB2_DMABUF | VB2_MMAP;
+	/* The bridge needs a CPU-mappable linear destination. MMAP buffers may
+	 * still be exported as DMA-BUF for downstream GPU presentation.
+	 */
+	dst_vq->io_modes = vde->soc->supports_block_linear ? VB2_MMAP :
+			   VB2_DMABUF | VB2_MMAP;
+	dst_vq->bidirectional = vde->soc->supports_block_linear;
 	dst_vq->lock = &vde->v4l2_lock;
 	dst_vq->dma_attrs = dma_attrs;
 	dst_vq->mem_ops = mem_ops;
@@ -429,7 +477,7 @@ static void tegra_reset_coded_fmt(struct tegra_ctx *ctx)
 	f->fmt.pix_mp.height = ctx->coded_fmt_desc->frmsize.min_height;
 }
 
-static void tegra_fill_pixfmt_mp(struct v4l2_pix_format_mplane *pixfmt,
+static void tegra_fill_pixfmt_mp(struct tegra_ctx *ctx, struct v4l2_pix_format_mplane *pixfmt,
 				 u32 pixelformat, u32 width, u32 height)
 {
 	const struct v4l2_format_info *info = v4l2_format_info(pixelformat);
@@ -456,7 +504,7 @@ static void tegra_fill_pixfmt_mp(struct v4l2_pix_format_mplane *pixfmt,
 			 * Y stride, hence we're aligning Y to 16B x 2.
 			 */
 			plane = &pixfmt->plane_fmt[i];
-			plane->bytesperline = ALIGN(width, VDE_ATOM * 2) / hdiv;
+			plane->bytesperline = ALIGN(width, ctx->vde->soc->supports_block_linear ? 128 : VDE_ATOM * 2) / hdiv;
 			plane->sizeimage = plane->bytesperline * height / vdiv;
 		}
 
@@ -470,10 +518,50 @@ static void tegra_reset_decoded_fmt(struct tegra_ctx *ctx)
 
 	tegra_reset_fmt(ctx, f, ctx->coded_fmt_desc->decoded_fmts[0]);
 	f->type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
-	tegra_fill_pixfmt_mp(&f->fmt.pix_mp,
+	tegra_fill_pixfmt_mp(ctx, &f->fmt.pix_mp,
 			     ctx->coded_fmt_desc->decoded_fmts[0],
 			     ctx->coded_fmt.fmt.pix_mp.width,
 			     ctx->coded_fmt.fmt.pix_mp.height);
+}
+
+static int tegra_t124_complete(struct tegra_ctx *ctx)
+{
+	struct vb2_v4l2_buffer *dst = v4l2_m2m_next_dst_buf(ctx->fh.m2m_ctx);
+	struct vb2_buffer *vb = &dst->vb2_buf;
+	struct tegra_m2m_buffer *tb = vb_to_tegra_buf(vb);
+	struct v4l2_pix_format_mplane *fmt = &ctx->decoded_fmt.fmt.pix_mp;
+	struct tegra_vde *vde = ctx->vde;
+	unsigned int i;
+	int err;
+
+	for (i = 0; i < fmt->num_planes; i++) {
+		struct tegra_vde_bo *bo = tb->tiled[i];
+		unsigned int rows = fmt->height / (i ? 2 : 1);
+		void *linear = vb2_plane_vaddr(vb, i);
+
+		if (!bo || !linear)
+			return -EINVAL;
+		dma_sync_sgtable_for_cpu(vde->dev, &bo->sgt, DMA_BIDIRECTIONAL);
+		if (bo->cpu_pages)
+			invalidate_kernel_vmap_range(bo->dma_cookie, bo->size);
+		if (vde->domain)
+			dma_sync_sgtable_for_cpu(vde->dev, vb2_dma_sg_plane_desc(vb, i), DMA_BIDIRECTIONAL);
+		else
+			dma_sync_single_for_cpu(vde->dev, tb->dma_base[i], vb2_plane_size(vb, i), DMA_BIDIRECTIONAL);
+		err = tegra_vde_t124_linearize(linear, vb2_plane_size(vb, i),
+					     bo->dma_cookie, bo->size,
+					     fmt->plane_fmt[i].bytesperline, rows);
+		if (vde->domain)
+			dma_sync_sgtable_for_device(vde->dev, vb2_dma_sg_plane_desc(vb, i), DMA_BIDIRECTIONAL);
+		else
+			dma_sync_single_for_device(vde->dev, tb->dma_base[i], vb2_plane_size(vb, i), DMA_BIDIRECTIONAL);
+		if (bo->cpu_pages)
+			flush_kernel_vmap_range(bo->dma_cookie, bo->size);
+		dma_sync_sgtable_for_device(vde->dev, &bo->sgt, DMA_BIDIRECTIONAL);
+		if (err)
+			return err;
+	}
+	return 0;
 }
 
 static void tegra_job_finish(struct tegra_ctx *ctx,
@@ -486,9 +574,19 @@ static void tegra_job_finish(struct tegra_ctx *ctx,
 static void tegra_decode_complete(struct work_struct *work)
 {
 	struct tegra_ctx *ctx = container_of(work, struct tegra_ctx, work);
+	struct vb2_v4l2_buffer *src = v4l2_m2m_next_src_buf(ctx->fh.m2m_ctx);
+	struct media_request *src_req = src->vb2_buf.req_obj.req;
 	int err;
 
-	err = ctx->coded_fmt_desc->decode_wait(ctx);
+	/* Start and finish the hardware transaction under the same mutex owner. */
+	err = v4l2_ctrl_request_setup(src_req, &ctx->hdl);
+	if (!err)
+		err = ctx->coded_fmt_desc->decode_run(ctx);
+	v4l2_ctrl_request_complete(src_req, &ctx->hdl);
+	if (!err)
+		err = ctx->coded_fmt_desc->decode_wait(ctx);
+	if (!err && ctx->vde->soc->supports_block_linear)
+		err = tegra_t124_complete(ctx);
 	if (err)
 		tegra_job_finish(ctx, VB2_BUF_STATE_ERROR);
 	else
@@ -563,7 +661,7 @@ static int tegra_try_decoded_fmt(struct file *file, void *priv,
 				       &pix_mp->height,
 				       &coded_desc->frmsize);
 
-	tegra_fill_pixfmt_mp(pix_mp, pix_mp->pixelformat,
+	tegra_fill_pixfmt_mp(ctx, pix_mp, pix_mp->pixelformat,
 			     pix_mp->width, pix_mp->height);
 	pix_mp->field = V4L2_FIELD_NONE;
 
@@ -882,20 +980,8 @@ static const struct v4l2_file_operations tegra_v4l2_fops = {
 static void tegra_device_run(void *priv)
 {
 	struct tegra_ctx *ctx = priv;
-	struct vb2_v4l2_buffer *src = v4l2_m2m_next_src_buf(ctx->fh.m2m_ctx);
-	struct media_request *src_req = src->vb2_buf.req_obj.req;
-	int err;
 
-	v4l2_ctrl_request_setup(src_req, &ctx->hdl);
-
-	err = ctx->coded_fmt_desc->decode_run(ctx);
-
-	v4l2_ctrl_request_complete(src_req, &ctx->hdl);
-
-	if (err)
-		tegra_job_finish(ctx, VB2_BUF_STATE_ERROR);
-	else
-		queue_work(ctx->vde->wq, &ctx->work);
+	queue_work(ctx->vde->wq, &ctx->work);
 }
 
 static const struct v4l2_m2m_ops tegra_v4l2_m2m_ops = {
@@ -962,24 +1048,24 @@ int tegra_vde_v4l2_init(struct tegra_vde *vde)
 		goto unreg_media_device;
 	}
 
-	err = video_register_device(&vde->vdev, VFL_TYPE_VIDEO, -1);
-	if (err) {
-		dev_err(dev, "failed to register video device: %d\n", err);
-		goto unreg_v4l2;
-	}
-
 	vde->m2m = v4l2_m2m_init(&tegra_v4l2_m2m_ops);
 	err = PTR_ERR_OR_ZERO(vde->m2m);
 	if (err) {
 		dev_err(dev, "failed to initialize m2m device: %d\n", err);
-		goto unreg_video_device;
+		goto unreg_v4l2;
+	}
+
+	err = video_register_device(&vde->vdev, VFL_TYPE_VIDEO, -1);
+	if (err) {
+		dev_err(dev, "failed to register video device: %d\n", err);
+		goto release_m2m;
 	}
 
 	err = v4l2_m2m_register_media_controller(vde->m2m, &vde->vdev,
 						 MEDIA_ENT_F_PROC_VIDEO_DECODER);
 	if (err) {
 		dev_err(dev, "failed to register media controller: %d\n", err);
-		goto release_m2m;
+		goto unreg_video_device;
 	}
 
 	v4l2_info(&vde->v4l2_dev, "v4l2 device registered as /dev/video%d\n",
@@ -987,10 +1073,10 @@ int tegra_vde_v4l2_init(struct tegra_vde *vde)
 
 	return 0;
 
-release_m2m:
-	v4l2_m2m_release(vde->m2m);
 unreg_video_device:
 	video_unregister_device(&vde->vdev);
+release_m2m:
+	v4l2_m2m_release(vde->m2m);
 unreg_v4l2:
 	v4l2_device_unregister(&vde->v4l2_dev);
 unreg_media_device:

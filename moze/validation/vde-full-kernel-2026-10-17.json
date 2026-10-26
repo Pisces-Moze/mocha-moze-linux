@@ -1,0 +1,56 @@
+{
+  "date": "2026-10-17",
+  "release": "6.12.111-moze.1-native-vde2",
+  "build_passed": true,
+  "host_layout_asan_ubsan_cases": 54,
+  "ram_boot_tested": true,
+  "default_installed": true,
+  "inputs_archive_sha256": "d78d5ef83067cc651383fc841150d4e79177d1084139d1c9108fe2c29c1f608d",
+  "source_sha256": {
+    "drivers/media/platform/nvidia/tegra-vde/h264.c": "cd7935cc40dce2164b56e9b46570472d3f1640f62ca3b01ac8b2b7b1e497e3f4",
+    "drivers/media/platform/nvidia/tegra-vde/tegra124-layout.h": "229a884a5769ccbf73def5409ea18133f646cdc3ff7fd6a4f6960eccfbe66808",
+    "drivers/media/platform/nvidia/tegra-vde/v4l2.c": "d608d4285cac31c541ea2f86476f4236f252c952a70928460e65a040df05a122",
+    "drivers/media/platform/nvidia/tegra-vde/vde.c": "79902637294f84c73a3bd989973b145801bab1ed28da6b773abb34ae966276a5",
+    "drivers/media/platform/nvidia/tegra-vde/vde.h": "433897d921d76e9a11e17fdd5eb402feb1e3df53be3a66a54806e72ef3566c2a",
+    "Documentation/devicetree/bindings/media/nvidia,tegra-vde.yaml": "1d79b4387cf0eeb75c4e083b438526435331d16eca8494792b5f6429fbfc61bd"
+  },
+  "package": {
+    "package_sha256": "8638d693d4ed63e53b19efc28d0cab50e86ce3012a3edb753cdf55dc77aaae6b",
+    "files": {
+      "uImage": "c46848142f4a43af51b121d67fba3c40728994065a20cd13040c2ae6cb7bfbd5",
+      "mocha.dtb": "9106b0c9549cf8dcfae8f92c1476b72a2349c371537bceca1e6721a6620e3ca2",
+      "mocha_miui_backlight.ko": "1713514d51988cc5f264ecb1e439bb55d7a515ba52de285c12b73e9f421182e7"
+    }
+  },
+  "config_sha256": "a50253872b69f18b25d9483a93ee556ed5bcf460855e942fa934bd28f29c2cba",
+  "initramfs_sha256": "453edd88257c3f5822cd3ea337442b76562c7d91021f9b2c6efe325b60fe01e7",
+  "matched_backlight": true,
+  "notes": [
+    "Includes cached private DPB, worker-owned decode mutex, flat scaling control and three-plane Capture path",
+    "Fresh RAM boot with built-in VDE enabled passed both 96-frame suites and complete Nyxuri desktop; DEBUG_MUTEXES remained enabled without warnings",
+    "Default boot files remain unchanged; persistent VDE loading and repeat cold boot are pending",
+    "CAVLC only; CPU tile-to-linear conversion remains; browser decoding not qualified"
+  ],
+  "fresh_boot_qualification": {
+    "driver": "tegra-vde",
+    "builtin_optin": true,
+    "debug_mutexes": true,
+    "kernel_warning_lines": [],
+    "desktop_user_confirmed": true,
+    "default_boot_unchanged": true,
+    "decoded_capture_format": "I420",
+    "hardware_checks": {
+      "gstreamer": {
+        "cases": 4,
+        "frames": 96,
+        "all_frame_hashes_match": true
+      },
+      "ffmpeg": {
+        "cases": 4,
+        "frames": 96,
+        "all_frame_hashes_match": true
+      }
+    }
+  },
+  "default_install_followup": "vde-default-install-2026-10-18.json"
+}

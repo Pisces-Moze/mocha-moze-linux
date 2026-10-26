@@ -7,6 +7,7 @@
  */
 
 #include <linux/iopoll.h>
+#include <linux/interrupt.h>
 #include <linux/pm_runtime.h>
 #include <linux/reset.h>
 #include <linux/slab.h>
@@ -158,7 +159,12 @@ static void tegra_vde_setup_frameid(struct tegra_vde *vde,
 	u32 value1 = frame ? ((frame->luma_atoms_pitch << 16) | mbs_height) : 0;
 	u32 value2 = frame ? ((frame->chroma_atoms_pitch << 6) | 1) : 0;
 
-	tegra_vde_writel(vde, y_addr  >> 8, vde->frameid, 0x000 + frameid * 4);
+	/* T124's frame table uses the progressive/interlace-capable encoding. */
+	u32 address = y_addr >> 8;
+
+	if (vde->soc->supports_block_linear)
+		address |= BIT(31);
+	tegra_vde_writel(vde, address, vde->frameid, 0x000 + frameid * 4);
 	tegra_vde_writel(vde, cb_addr >> 8, vde->frameid, 0x100 + frameid * 4);
 	tegra_vde_writel(vde, cr_addr >> 8, vde->frameid, 0x180 + frameid * 4);
 	tegra_vde_writel(vde, value1,       vde->frameid, 0x080 + frameid * 4);
@@ -301,7 +307,11 @@ static int tegra_vde_setup_hw_context(struct tegra_vde *vde,
 	tegra_vde_writel(vde, 0x00000000, vde->bsev, 0x98);
 	tegra_vde_writel(vde, 0x00000060, vde->bsev, 0x9C);
 
-	memset(vde->iram + 128, 0, macroblocks_nb / 2);
+	/* The existing BSEV upload covers 4080 bytes. Keep the candidate within
+	 * 1920x1088 and initialize that entire no-FMO map before each decode.
+	 */
+	memset(vde->iram + 128, 0, vde->soc->supports_block_linear ?
+	       4080 : macroblocks_nb / 2);
 
 	tegra_setup_frameidx(vde, dpb_frames, ctx->dpb_frames_nb,
 			     ctx->pic_width_in_mbs, ctx->pic_height_in_mbs);
@@ -454,6 +464,13 @@ static void tegra_vde_decode_frame(struct tegra_vde *vde,
 				   unsigned int macroblocks_nb)
 {
 	reinit_completion(&vde->decode_completion);
+	if (vde->soc->supports_block_linear) {
+		/* Context reset is complete and clocks are on. Clear any old
+		 * completion before unmasking the level-triggered sync IRQ.
+		 */
+		tegra_vde_set_bits(vde, 0, vde->frameid, 0x208);
+		enable_irq(vde->irq);
+	}
 
 	tegra_vde_writel(vde, 0x00000001, vde->bsev, 0x8C);
 	tegra_vde_writel(vde, 0x20000000 | (macroblocks_nb - 1),
@@ -564,6 +581,11 @@ static int tegra_vde_decode_begin(struct tegra_vde *vde,
 		goto put_runtime_pm;
 	}
 
+	if (vde->soc->supports_block_linear) {
+		err = reset_control_reset(vde->rst_bsev);
+		if (err)
+			goto put_runtime_pm;
+	}
 	err = reset_control_deassert(vde->rst_mc);
 	if (err) {
 		dev_err(dev, "DEC start: Failed to deassert MC reset: %d\n",
@@ -598,6 +620,9 @@ static void tegra_vde_decode_abort(struct tegra_vde *vde)
 {
 	struct device *dev = vde->dev;
 	int err;
+
+	if (vde->soc->supports_block_linear)
+		disable_irq(vde->irq);
 
 	/*
 	 * At first reset memory client to avoid resetting VDE HW in the
@@ -705,6 +730,13 @@ static int tegra_vde_h264_setup_frame(struct tegra_ctx *ctx,
 
 	lsize = h264->pic_width_in_mbs * 16 * h264->pic_height_in_mbs * 16;
 	csize = h264->pic_width_in_mbs *  8 * h264->pic_height_in_mbs *  8;
+	/* A padded linear pitch can hide an undersized capture geometry when
+	 * checking only width*height. Never let the tiled DMA cross a plane.
+	 */
+	if (vde->soc->supports_block_linear &&
+	    (h264->pic_width_in_mbs * 16 > pixfmt->width ||
+	     h264->pic_height_in_mbs * 16 > pixfmt->height))
+		return -EINVAL;
 	lstride = pixfmt->plane_fmt[0].bytesperline;
 	cstride = pixfmt->plane_fmt[1].bytesperline;
 
@@ -739,9 +771,20 @@ static int tegra_vde_h264_setup_frame(struct tegra_ctx *ctx,
 		flags |= FLAG_B_FRAME;
 
 	vde->frames[id].flags = flags;
-	vde->frames[id].y_addr = tb->dma_addr[0];
-	vde->frames[id].cb_addr = tb->dma_addr[1];
-	vde->frames[id].cr_addr = tb->dma_addr[2];
+	if (vde->soc->supports_block_linear) {
+		unsigned int cb = pixfmt->pixelformat == V4L2_PIX_FMT_YVU420M ? 2 : 1;
+		unsigned int cr = 3 - cb;
+
+		if (!tb->tiled[0] || !tb->tiled[cb] || !tb->tiled[cr])
+			return -EINVAL;
+		vde->frames[id].y_addr = tb->tiled[0]->dma_addr;
+		vde->frames[id].cb_addr = tb->tiled[cb]->dma_addr;
+		vde->frames[id].cr_addr = tb->tiled[cr]->dma_addr;
+	} else {
+		vde->frames[id].y_addr = tb->dma_addr[0];
+		vde->frames[id].cb_addr = tb->dma_addr[1];
+		vde->frames[id].cr_addr = tb->dma_addr[2];
+	}
 	vde->frames[id].aux_addr = tb->aux->dma_addr;
 	vde->frames[id].frame_num = frame_num & 0x7fffff;
 	vde->frames[id].luma_atoms_pitch = lstride / VDE_ATOM;
@@ -871,6 +914,12 @@ static int tegra_vde_h264_setup_context(struct tegra_ctx *ctx,
 	tegra_vde_prepare_control_data(ctx, V4L2_CID_STATELESS_H264_DECODE_PARAMS);
 	tegra_vde_prepare_control_data(ctx, V4L2_CID_STATELESS_H264_SPS);
 	tegra_vde_prepare_control_data(ctx, V4L2_CID_STATELESS_H264_PPS);
+
+	if (vde->soc->supports_block_linear && h->pps->num_slice_groups_minus1)
+		return -EOPNOTSUPP;
+
+	if (h->pps->flags & V4L2_H264_PPS_FLAG_TRANSFORM_8X8_MODE)
+		return -EOPNOTSUPP;
 
 	/* CABAC unsupported by hardware, requires software preprocessing */
 	if (h->pps->flags & V4L2_H264_PPS_FLAG_ENTROPY_CODING_MODE)

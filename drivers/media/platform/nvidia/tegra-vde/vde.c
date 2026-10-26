@@ -7,6 +7,7 @@
  */
 
 #include <linux/clk.h>
+#include <linux/delay.h>
 #include <linux/dma-buf.h>
 #include <linux/genalloc.h>
 #include <linux/interrupt.h>
@@ -18,6 +19,7 @@
 #include <linux/reset.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
+#include <linux/vmalloc.h>
 
 #include <soc/tegra/common.h>
 #include <soc/tegra/pmc.h>
@@ -26,6 +28,11 @@
 
 #define CREATE_TRACE_POINTS
 #include "trace.h"
+
+/* Experimental until decode fixtures and DPB reuse pass on a real T124. */
+static bool tegra124_enable;
+module_param(tegra124_enable, bool, 0400);
+MODULE_PARM_DESC(tegra124_enable, "Enable experimental Tegra124 block-linear compatibility output");
 
 void tegra_vde_writel(struct tegra_vde *vde, u32 value,
 		      void __iomem *base, u32 offset)
@@ -52,10 +59,10 @@ void tegra_vde_set_bits(struct tegra_vde *vde, u32 mask,
 	tegra_vde_writel(vde, value | mask, base, offset);
 }
 
-int tegra_vde_alloc_bo(struct tegra_vde *vde,
+static int tegra_vde_alloc_bo_attrs(struct tegra_vde *vde,
 		       struct tegra_vde_bo **ret_bo,
 		       enum dma_data_direction dma_dir,
-		       size_t size)
+		       size_t size, bool cpu_access)
 {
 	struct device *dev = vde->dev;
 	struct tegra_vde_bo *bo;
@@ -68,8 +75,9 @@ int tegra_vde_alloc_bo(struct tegra_vde *vde,
 	bo->vde = vde;
 	bo->size = size;
 	bo->dma_dir = dma_dir;
-	bo->dma_attrs = DMA_ATTR_WRITE_COMBINE |
-			DMA_ATTR_NO_KERNEL_MAPPING;
+	bo->dma_attrs = DMA_ATTR_WRITE_COMBINE;
+	if (!cpu_access)
+		bo->dma_attrs |= DMA_ATTR_NO_KERNEL_MAPPING;
 
 	if (!vde->domain)
 		bo->dma_attrs |= DMA_ATTR_FORCE_CONTIGUOUS;
@@ -125,6 +133,78 @@ free_bo:
 	return err;
 }
 
+int tegra_vde_alloc_bo(struct tegra_vde *vde,
+		       struct tegra_vde_bo **bo,
+		       enum dma_data_direction direction, size_t size)
+{
+	return tegra_vde_alloc_bo_attrs(vde, bo, direction, size, false);
+}
+
+int tegra_vde_alloc_cpu_bo(struct tegra_vde *vde,
+			 struct tegra_vde_bo **bo, size_t size)
+{
+	struct device *dev = vde->dev;
+	struct tegra_vde_bo *buf;
+	unsigned int i;
+	int err = -ENOMEM;
+
+	/* Without our IOMMU a fragmented allocation is not DMA-contiguous. */
+	if (!vde->domain)
+		return tegra_vde_alloc_bo_attrs(vde, bo, DMA_BIDIRECTIONAL,
+					      size, true);
+	buf = kzalloc(sizeof(*buf), GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+	buf->vde = vde;
+	buf->size = PAGE_ALIGN(size);
+	buf->dma_dir = DMA_BIDIRECTIONAL;
+	buf->cpu_page_count = buf->size >> PAGE_SHIFT;
+	buf->cpu_pages = kcalloc(buf->cpu_page_count, sizeof(*buf->cpu_pages),
+				GFP_KERNEL);
+	if (!buf->cpu_pages)
+		goto free_buf;
+	for (i = 0; i < buf->cpu_page_count; i++) {
+		buf->cpu_pages[i] = alloc_page(GFP_KERNEL | __GFP_ZERO);
+		if (!buf->cpu_pages[i])
+			goto free_pages;
+	}
+	err = sg_alloc_table_from_pages(&buf->sgt, buf->cpu_pages,
+					buf->cpu_page_count, 0, buf->size, GFP_KERNEL);
+	if (err)
+		goto free_pages;
+	buf->dma_cookie = vmap(buf->cpu_pages, buf->cpu_page_count,
+			       VM_MAP, PAGE_KERNEL);
+	if (!buf->dma_cookie) {
+		err = -ENOMEM;
+		goto free_table;
+	}
+	flush_kernel_vmap_range(buf->dma_cookie, buf->size);
+	err = dma_map_sgtable(dev, &buf->sgt, buf->dma_dir, 0);
+	if (err)
+		goto unmap_cpu;
+	err = tegra_vde_iommu_map(vde, &buf->sgt, &buf->iova, buf->size);
+	if (err)
+		goto unmap_dma;
+	buf->dma_addr = iova_dma_addr(&vde->iova, buf->iova);
+	*bo = buf;
+	return 0;
+
+unmap_dma:
+	dma_unmap_sgtable(dev, &buf->sgt, buf->dma_dir, 0);
+unmap_cpu:
+	vunmap(buf->dma_cookie);
+free_table:
+	sg_free_table(&buf->sgt);
+free_pages:
+	for (i = 0; i < buf->cpu_page_count; i++)
+		if (buf->cpu_pages[i])
+			__free_page(buf->cpu_pages[i]);
+	kfree(buf->cpu_pages);
+free_buf:
+	kfree(buf);
+	return err;
+}
+
 void tegra_vde_free_bo(struct tegra_vde_bo *bo)
 {
 	struct tegra_vde *vde = bo->vde;
@@ -137,6 +217,16 @@ void tegra_vde_free_bo(struct tegra_vde_bo *bo)
 
 	sg_free_table(&bo->sgt);
 
+	if (bo->cpu_pages) {
+		unsigned int i;
+
+		vunmap(bo->dma_cookie);
+		for (i = 0; i < bo->cpu_page_count; i++)
+			__free_page(bo->cpu_pages[i]);
+		kfree(bo->cpu_pages);
+		kfree(bo);
+		return;
+	}
 	dma_free_attrs(dev, bo->size, bo->dma_cookie, bo->dma_handle,
 		       bo->dma_attrs);
 	kfree(bo);
@@ -160,15 +250,21 @@ static __maybe_unused int tegra_vde_runtime_suspend(struct device *dev)
 	struct tegra_vde *vde = dev_get_drvdata(dev);
 	int err;
 
+	err = reset_control_assert(vde->rst_bsev);
+	if (err)
+		return err;
 	if (!dev->pm_domain) {
 		err = tegra_powergate_power_off(TEGRA_POWERGATE_VDEC);
 		if (err) {
 			dev_err(dev, "Failed to power down HW: %d\n", err);
+			reset_control_deassert(vde->rst_bsev);
 			return err;
 		}
 	}
 
+	clk_disable_unprepare(vde->clk_bsev);
 	clk_disable_unprepare(vde->clk);
+	reset_control_release(vde->rst_bsev);
 	reset_control_release(vde->rst);
 	reset_control_release(vde->rst_mc);
 
@@ -192,12 +288,15 @@ static __maybe_unused int tegra_vde_runtime_resume(struct device *dev)
 		goto release_mc_reset;
 	}
 
+	err = reset_control_acquire(vde->rst_bsev);
+	if (err)
+		goto release_reset;
 	if (!dev->pm_domain) {
 		err = tegra_powergate_sequence_power_up(TEGRA_POWERGATE_VDEC,
 							vde->clk, vde->rst);
 		if (err) {
 			dev_err(dev, "Failed to power up HW : %d\n", err);
-			goto release_reset;
+			goto release_bsev_reset;
 		}
 	} else {
 		/*
@@ -207,12 +306,28 @@ static __maybe_unused int tegra_vde_runtime_resume(struct device *dev)
 		err = clk_prepare_enable(vde->clk);
 		if (err) {
 			dev_err(dev, "Failed to enable clock: %d\n", err);
-			goto release_reset;
+			goto release_bsev_reset;
 		}
 	}
 
+	err = clk_prepare_enable(vde->clk_bsev);
+	if (err)
+		goto disable_vde;
+	err = reset_control_deassert(vde->rst_bsev);
+	if (err)
+		goto disable_bsev;
+	if (vde->clk_bsev)
+		usleep_range(2000, 4000);
 	return 0;
 
+disable_bsev:
+	clk_disable_unprepare(vde->clk_bsev);
+disable_vde:
+	if (!dev->pm_domain)
+		tegra_powergate_power_off(TEGRA_POWERGATE_VDEC);
+	clk_disable_unprepare(vde->clk);
+release_bsev_reset:
+	reset_control_release(vde->rst_bsev);
 release_reset:
 	reset_control_release(vde->rst);
 release_mc_reset:
@@ -234,6 +349,9 @@ static int tegra_vde_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, vde);
 
 	vde->soc = of_device_get_match_data(&pdev->dev);
+	if (vde->soc->supports_block_linear && !tegra124_enable)
+		return dev_err_probe(dev, -EOPNOTSUPP,
+				     "T124 candidate requires tegra_vde.tegra124_enable=1\n");
 	vde->dev = dev;
 
 	vde->sxe = devm_platform_ioremap_resource_byname(pdev, "sxe");
@@ -293,17 +411,34 @@ static int tegra_vde_probe(struct platform_device *pdev)
 		return err;
 	}
 
+	vde->clk_bsev = devm_clk_get_optional(dev, "bsev");
+	if (IS_ERR(vde->clk_bsev))
+		return dev_err_probe(dev, PTR_ERR(vde->clk_bsev), "BSEV clock\n");
+	vde->rst_bsev = devm_reset_control_get_optional_exclusive_released(dev, "bsev");
+	if (IS_ERR(vde->rst_bsev))
+		return dev_err_probe(dev, PTR_ERR(vde->rst_bsev), "BSEV reset\n");
+	if (vde->soc->supports_block_linear && (!vde->clk_bsev || !vde->rst_bsev))
+		return dev_err_probe(dev, -EINVAL, "T124 requires BSEV clock and reset\n");
+
+	if (vde->soc->supports_block_linear)
+		dev_info(dev, "T124 probe: resources acquired\n");
 	irq = platform_get_irq_byname(pdev, "sync-token");
 	if (irq < 0)
 		return irq;
 
-	err = devm_request_irq(dev, irq, tegra_vde_isr, 0,
+	/* Never permit T124 IRQ MMIO while the VDEC partition is off. */
+	vde->irq = irq;
+	init_completion(&vde->decode_completion);
+	err = devm_request_irq(dev, irq, tegra_vde_isr,
+			       vde->soc->supports_block_linear ? IRQF_NO_AUTOEN : 0,
 			       dev_name(dev), vde);
 	if (err) {
 		dev_err(dev, "Could not request IRQ %d\n", err);
 		return err;
 	}
 
+	if (vde->soc->supports_block_linear)
+		dev_info(dev, "T124 probe: IRQ registered masked\n");
 	err = devm_tegra_core_dev_init_opp_table_common(dev);
 	if (err) {
 		dev_err(dev, "Could initialize OPP table %d\n", err);
@@ -327,8 +462,9 @@ static int tegra_vde_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&vde->map_list);
 	mutex_init(&vde->map_lock);
 	mutex_init(&vde->lock);
-	init_completion(&vde->decode_completion);
 
+	if (vde->soc->supports_block_linear)
+		dev_info(dev, "T124 probe: SRAM pool reserved\n");
 	err = tegra_vde_iommu_init(vde);
 	if (err) {
 		dev_err(dev, "Failed to initialize IOMMU: %d\n", err);
@@ -344,18 +480,24 @@ static int tegra_vde_probe(struct platform_device *pdev)
 	 * power-cycle it in order to put hardware into a predictable lower
 	 * power state.
 	 */
+	if (vde->soc->supports_block_linear)
+		dev_info(dev, "T124 probe: IOMMU ready; resuming VDEC\n");
 	err = pm_runtime_resume_and_get(dev);
 	if (err)
 		goto err_pm_runtime;
 
 	pm_runtime_put(dev);
 
+	if (vde->soc->supports_block_linear)
+		dev_info(dev, "T124 probe: initial runtime resume complete\n");
 	err = tegra_vde_alloc_bo(vde, &vde->secure_bo, DMA_FROM_DEVICE, 4096);
 	if (err) {
 		dev_err(dev, "Failed to allocate secure BO: %d\n", err);
 		goto err_pm_runtime;
 	}
 
+	if (vde->soc->supports_block_linear)
+		dev_info(dev, "T124 probe: secure buffer allocated; registering V4L2\n");
 	err = tegra_vde_v4l2_init(vde);
 	if (err) {
 		dev_err(dev, "Failed to initialize V4L2: %d\n", err);
@@ -401,6 +543,7 @@ static void tegra_vde_remove(struct platform_device *pdev)
 	 * is clock-gated. It's safe to reboot machine now.
 	 */
 	pm_runtime_put_noidle(dev);
+	clk_disable_unprepare(vde->clk_bsev);
 	clk_disable_unprepare(vde->clk);
 
 	tegra_vde_dmabuf_cache_unmap_all(vde);
@@ -456,7 +599,9 @@ static const struct dev_pm_ops tegra_vde_pm_ops = {
 };
 
 static const u32 tegra124_decoded_fmts[] = {
-	/* TBD: T124 supports only a non-standard Tegra tiled format */
+	/* Hardware DPB remains block-linear; compatibility output is linear. */
+	V4L2_PIX_FMT_YUV420M,
+	V4L2_PIX_FMT_YVU420M,
 };
 
 static const struct tegra_coded_fmt_desc tegra124_coded_fmts[] = {
@@ -467,7 +612,7 @@ static const struct tegra_coded_fmt_desc tegra124_coded_fmts[] = {
 			.max_width = 1920,
 			.step_width = 16,
 			.min_height = 16,
-			.max_height = 2032,
+			.max_height = 1088,
 			.step_height = 16,
 		},
 		.num_decoded_fmts = ARRAY_SIZE(tegra124_decoded_fmts),
@@ -502,6 +647,7 @@ static const struct tegra_coded_fmt_desc tegra20_coded_fmts[] = {
 
 static const struct tegra_vde_soc tegra124_vde_soc = {
 	.supports_ref_pic_marking = true,
+	.supports_block_linear = true,
 	.coded_fmts = tegra124_coded_fmts,
 	.num_coded_fmts = ARRAY_SIZE(tegra124_coded_fmts),
 };

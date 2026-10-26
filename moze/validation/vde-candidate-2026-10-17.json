@@ -1,0 +1,68 @@
+{
+  "date": "2026-10-17",
+  "profile": "native-vde experimental opt-in",
+  "source_base_commit": "b6b2eecb1a2bca2e43a985d456e39642c6873b16",
+  "source_worktree_has_uncommitted_changes": true,
+  "kernelrelease": "6.12.111-moze.1-native-vde1",
+  "source_sha256": {
+    "drivers/media/platform/nvidia/tegra-vde/vde.c": "d2925e2374b151adbbd6938d7b986c4c6108a15506e27303401fb82ac8ce877b",
+    "drivers/media/platform/nvidia/tegra-vde/vde.h": "f440640f3c5681267b4734f1616bebd08afbb2037f0fb813b30d6ffe29844e4a",
+    "drivers/media/platform/nvidia/tegra-vde/h264.c": "8c7d23f9c7183d62a8991c68162ce31c84b16848d37a189a9788cda11da66e1d",
+    "drivers/media/platform/nvidia/tegra-vde/v4l2.c": "ac68f01c046945cdb75f4af8842f976cfc7424a24b679d35d33a74656b7727a4",
+    "drivers/media/platform/nvidia/tegra-vde/tegra124-layout.h": "229a884a5769ccbf73def5409ea18133f646cdc3ff7fd6a4f6960eccfbe66808",
+    "Documentation/devicetree/bindings/media/nvidia,tegra-vde.yaml": "1d79b4387cf0eeb75c4e083b438526435331d16eca8494792b5f6429fbfc61bd"
+  },
+  "artifacts": {
+    "package_sha256": "86da5d07b8e0396ef278e277848b46d849dfc2c58e85430757f57daaa5972be2",
+    "files": {
+      "uImage": "1191f291bbf2f7b3a9802592722f0cd69a287fb9b08c1ce9b8719ffe57dcc36b",
+      "mocha.dtb": "9106b0c9549cf8dcfae8f92c1476b72a2349c371537bceca1e6721a6620e3ca2",
+      "mocha_miui_backlight.ko": "c0851f2b56693762ccc0649597b0ec06efe179179b3be2dfcd0ed9ce157d3cfc"
+    }
+  },
+  "host_layout_test": {
+    "status": "passed",
+    "geometries": 54,
+    "sanitizers": [
+      "address",
+      "undefined"
+    ]
+  },
+  "cross_compile": {
+    "kernel": "passed",
+    "modules": "passed",
+    "matched_external_backlight": "passed"
+  },
+  "device_tree": {
+    "base": "native-runtime.dts",
+    "dfll": "okay",
+    "wifi_keep_power": true,
+    "vde_smmu_swgroup": 10,
+    "mc_reset": 12,
+    "vde_rate_hz": 204000000
+  },
+  "ram_boot": {
+    "status": "dispatched_management_connection_not_established",
+    "artifact_ram_crc": "passed",
+    "default_boot_changed": false,
+    "kernelrelease_from_live_ssh": null,
+    "cause": "not yet isolated"
+  },
+  "hardware_decode": {
+    "status": "not validated",
+    "frame_comparison": null,
+    "dpb_reuse": null,
+    "timeout_recovery": null
+  },
+  "known_limits": [
+    "progressive CAVLC only; CABAC and field pictures remain rejected",
+    "no FMO",
+    "maximum coded geometry 1920x1088",
+    "linear compatibility output uses extra buffers and CPU detiling",
+    "MPV and browsers are not yet connected to the decoder"
+  ],
+  "wallpaper_policy": {
+    "pause_for_panels_or_overview": false,
+    "fullscreen_memory_release": "not yet implemented"
+  }
+}

@@ -41,15 +41,25 @@ properties:
       - const: frameid
 
   clocks:
-    maxItems: 1
-
-  resets:
+    minItems: 1
     maxItems: 2
 
+  clock-names:
+    minItems: 1
+    items:
+      - const: vde
+      - const: bsev
+
+  resets:
+    minItems: 2
+    maxItems: 3
+
   reset-names:
+    minItems: 2
     items:
       - const: vde
       - const: mc
+      - const: bsev
 
   interrupts:
     maxItems: 3
@@ -87,6 +97,36 @@ required:
   - reset-names
   - interrupts
   - interrupt-names
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: nvidia,tegra124-vde
+    then:
+      properties:
+        clocks:
+          minItems: 2
+        clock-names:
+          minItems: 2
+        resets:
+          minItems: 3
+        reset-names:
+          minItems: 3
+      required:
+        - clock-names
+        - iram
+    else:
+      properties:
+        clocks:
+          maxItems: 1
+        clock-names:
+          maxItems: 1
+        resets:
+          maxItems: 2
+        reset-names:
+          maxItems: 2
 
 additionalProperties: false
 

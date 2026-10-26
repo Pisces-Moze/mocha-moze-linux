@@ -1,0 +1,52 @@
+{
+  "date": "2026-10-18",
+  "kernelrelease": "6.12.111-moze.1-native-vde2",
+  "default_installed": true,
+  "ordinary_boot_acceptance_pending": false,
+  "kernel_uimage_sha256": "c46848142f4a43af51b121d67fba3c40728994065a20cd13040c2ae6cb7bfbd5",
+  "dtb_sha256": "9106b0c9549cf8dcfae8f92c1476b72a2349c371537bceca1e6721a6620e3ca2",
+  "backlight_module_sha256": "1713514d51988cc5f264ecb1e439bb55d7a515ba52de285c12b73e9f421182e7",
+  "explicit_vde_module_sha256": "9cc5ebc1cd60a4457cdc859f76c01b8f6f4d05c3e1978097e6cabb8f6d61e513",
+  "explicit_loader_source_sha256": "f21cdb2568a153e292d8771a400154ce94b1569352f0b4c8ed2c71fde5504c06",
+  "builtin_probe_opted_out": true,
+  "module_outside_depmod_autoload_tree": true,
+  "module_enabled_by_root_desktop_hardware_loader": true,
+  "charging_to_desktop_uses_root_owned_release_marker": true,
+  "bootloader_and_initramfs_unchanged": true,
+  "previous_default_backed_up": true,
+  "ram_cold_boots": {
+    "builtin_driver": 1,
+    "explicit_module": 1
+  },
+  "second_cold_boot": {
+    "gst_exact_frames": 96,
+    "ffmpeg_exact_frames": 96,
+    "hardware_rate_check_passed": true,
+    "lock_or_iommu_warnings_after_decode": false,
+    "gui_user_confirmed": true,
+    "managed_wallpaper_request_decode": true,
+    "popup_overview_kept_playing": true,
+    "fullscreen_resource_release_cycles": 3,
+    "fullscreen_resume_display_drops_remain": true
+  },
+  "limitations": [
+    "Progressive CAVLC only",
+    "CPU detiling remains",
+    "Long-term memory pressure not qualified",
+    "Bluetooth HCI timeout remains",
+    "No ALSA sound card yet",
+    "Browser hardware decoding not qualified"
+  ],
+  "ordinary_boot": {
+    "user_confirmed_normal": true,
+    "diagnostic_boot_flag_absent": true,
+    "explicit_module_bound": true,
+    "hardware_cpu_gpu_services_active": true,
+    "cpu_governor": "schedutil",
+    "cpu_max_khz": 1020000,
+    "zram_bytes": 402653184,
+    "wallpaper_hwdec": "v4l2request",
+    "wallpaper_paused": false,
+    "backlight_module_loaded": true
+  }
+}

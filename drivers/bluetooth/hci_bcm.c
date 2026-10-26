@@ -1567,6 +1567,12 @@ static int bcm_serdev_probe(struct serdev_device *serdev)
 			bcmdev->oper_speed = data->max_speed;
 	}
 
+	/* Mocha samples BT_UART_CTS_N during power-up. Keep it high until
+	 * shutdown is released, otherwise the controller stays in ROM recovery.
+	 */
+	if (of_machine_is_compatible("nvidia,mocha"))
+		bcmdev->drive_rts_on_open = true;
+
 	return hci_uart_register_device(&bcmdev->serdev_hu, &bcm_proto);
 }
 

@@ -1,0 +1,171 @@
+{
+  "date": "2026-10-20",
+  "status": "rejected_for_production_after_live_comparison",
+  "candidate_header_sha256": "79c4ba1f6714cf11a7f99b4dcab941eb2effa0bc7f10d33ab03d3a362a794ff8",
+  "candidate_module_sha256": "f6bbf8a292b0d582e494055c451955137a38dd283f00cc9a20fc5d5487914b6a",
+  "production_header_sha256": "229a884a5769ccbf73def5409ea18133f646cdc3ff7fd6a4f6960eccfbe66808",
+  "host_asan_ubsan_geometries": 54,
+  "userspace_microbenchmark": {
+    "rows": [
+      {
+        "pitch": 1536,
+        "height": 1088,
+        "trial": 0,
+        "original_cpu_ns": 52035333,
+        "candidate_cpu_ns": 31727083
+      },
+      {
+        "pitch": 1536,
+        "height": 1088,
+        "trial": 1,
+        "original_cpu_ns": 52458084,
+        "candidate_cpu_ns": 34300167
+      },
+      {
+        "pitch": 1536,
+        "height": 1088,
+        "trial": 2,
+        "original_cpu_ns": 51540917,
+        "candidate_cpu_ns": 34045417
+      },
+      {
+        "pitch": 1536,
+        "height": 1088,
+        "trial": 3,
+        "original_cpu_ns": 51951000,
+        "candidate_cpu_ns": 33507834
+      },
+      {
+        "pitch": 1536,
+        "height": 1088,
+        "trial": 4,
+        "original_cpu_ns": 51530500,
+        "candidate_cpu_ns": 31563417
+      },
+      {
+        "pitch": 768,
+        "height": 544,
+        "trial": 0,
+        "original_cpu_ns": 12391250,
+        "candidate_cpu_ns": 8885333
+      },
+      {
+        "pitch": 768,
+        "height": 544,
+        "trial": 1,
+        "original_cpu_ns": 13584834,
+        "candidate_cpu_ns": 7880250
+      },
+      {
+        "pitch": 768,
+        "height": 544,
+        "trial": 2,
+        "original_cpu_ns": 14919750,
+        "candidate_cpu_ns": 8315833
+      },
+      {
+        "pitch": 768,
+        "height": 544,
+        "trial": 3,
+        "original_cpu_ns": 12370667,
+        "candidate_cpu_ns": 7094666
+      },
+      {
+        "pitch": 768,
+        "height": 544,
+        "trial": 4,
+        "original_cpu_ns": 12053833,
+        "candidate_cpu_ns": 6583834
+      }
+    ],
+    "summary": [
+      {
+        "pitch": 1536,
+        "height": 1088,
+        "median_speedup": 1.5504135540363486
+      },
+      {
+        "pitch": 768,
+        "height": 544,
+        "median_speedup": 1.7436574181222908
+      }
+    ],
+    "same_output": true,
+    "production_driver_modified": false,
+    "userspace_cached_memory_only": true
+  },
+  "live_hardware_decode": {
+    "frequency_policy": {
+      "scaling_governor": "schedutil",
+      "scaling_max_freq": "1020000",
+      "scaling_min_freq": "204000"
+    },
+    "baseline": [
+      {
+        "wall_seconds": 2.654086153008393,
+        "system_busy_cpu_seconds": 3.43,
+        "requested_frames": 120,
+        "decode_errors": 0
+      },
+      {
+        "wall_seconds": 2.6683412839920493,
+        "system_busy_cpu_seconds": 3.63,
+        "requested_frames": 120,
+        "decode_errors": 0
+      }
+    ],
+    "fixtures": [
+      {
+        "name": "tiny",
+        "frames": 24,
+        "exact_match": true
+      },
+      {
+        "name": "dpb",
+        "frames": 24,
+        "exact_match": true
+      },
+      {
+        "name": "odd-gob",
+        "frames": 24,
+        "exact_match": true
+      },
+      {
+        "name": "wallpaper-crop",
+        "frames": 24,
+        "exact_match": true
+      }
+    ],
+    "candidate": [
+      {
+        "wall_seconds": 2.7314360739983385,
+        "system_busy_cpu_seconds": 4.29,
+        "requested_frames": 120,
+        "decode_errors": 0
+      },
+      {
+        "wall_seconds": 2.7681368390040006,
+        "system_busy_cpu_seconds": 3.97,
+        "requested_frames": 120,
+        "decode_errors": 0
+      }
+    ],
+    "summary": {
+      "wall_seconds": 0.9677892303994949,
+      "system_busy_cpu_seconds": 0.8547215496368039
+    },
+    "success": true,
+    "production_module_restored": true
+  },
+  "module_srcversion_restored": null,
+  "static_selection_preserved": true,
+  "limits": [
+    "The microbenchmark uses process CPU time on cached malloc buffers, not actual DMA memory.",
+    "The live test uses two 120-frame runs per implementation, schedutil 204-1020 MHz; actual frequency is not fixed.",
+    "System busy CPU time includes unrelated work; this is not an isolated per-driver CPU measurement.",
+    "Exact hardware frame comparisons passed all 96 synthetic reference frames.",
+    "Live median throughput did not improve, so the original module and production header were restored.",
+    "The archived candidate is not used by the normal kernel or module build."
+  ],
+  "module_build_id_restored": true
+}

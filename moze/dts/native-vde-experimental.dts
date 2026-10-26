@@ -1,0 +1,47 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/* RAM-only VDE candidate, based on the accepted native runtime layout.
+ * Adapted from Thierry Reding's Tegra124 VDE/SMMU device-tree commits.
+ * Preserve the first 1 KiB CPU reset handler and the LPx resume area at 4 KiB.
+ * Enable decode separately with tegra_vde.tegra124_enable=1 on the command line.
+ */
+/include/ "native-runtime.dts"
+
+/ {
+	iram@40000000 {
+		compatible = "mmio-sram";
+		reg = <0x0 0x40000000 0x0 0x40000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0x0 0x40000000 0x40000>;
+
+		mocha_vde_pool: pool@10000 {
+			reg = <0x10000 0x10000>;
+			pool;
+		};
+	};
+
+	video-codec@60030000 {
+		compatible = "nvidia,tegra124-vde";
+		reg = <0x0 0x60030000 0x0 0x1000>,
+		      <0x0 0x60031000 0x0 0x1000>,
+		      <0x0 0x60032000 0x0 0x100>,
+		      <0x0 0x60032200 0x0 0x100>,
+		      <0x0 0x60032400 0x0 0x100>,
+		      <0x0 0x60032600 0x0 0x100>,
+		      <0x0 0x60032800 0x0 0x100>,
+		      <0x0 0x60032a00 0x0 0x100>,
+		      <0x0 0x60033800 0x0 0x400>;
+		reg-names = "sxe", "bsev", "mbe", "ppe", "mce", "tfe",
+			    "ppb", "vdma", "frameid";
+		interrupts = <0 9 4>, <0 10 4>, <0 12 4>;
+		interrupt-names = "sync-token", "bsev", "sxe";
+		clocks = <0x03 61>, <0x03 63>;
+		clock-names = "vde", "bsev";
+		assigned-clocks = <0x03 61>;
+		assigned-clock-rates = <204000000>;
+		resets = <0x03 61>, <0x04 12>, <0x03 63>;
+		reset-names = "vde", "mc", "bsev";
+		iommus = <0x04 10>; /* TEGRA_SWGROUP_VDE */
+		iram = <&mocha_vde_pool>;
+	};
+};
