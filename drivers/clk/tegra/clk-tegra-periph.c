@@ -802,6 +802,8 @@ static struct tegra_periph_init_data gate_clks[] = {
 	GATE("ispa", "isp", 23, 0, tegra_clk_ispa, 0),
 	GATE("ispb", "isp", 3, 0, tegra_clk_ispb, 0),
 	GATE("vim2_clk", "clk_m", 11, 0, tegra_clk_vim2_clk, 0),
+	GATE("vim2_clk", "vi_sensor2", 171, TEGRA_PERIPH_NO_RESET,
+	     tegra_clk_vim2_clk_124, CLK_SET_RATE_PARENT),
 	GATE("pcie", "clk_m", 70, 0, tegra_clk_pcie, 0),
 	GATE("gpu", "pll_ref", 184, 0, tegra_clk_gpu, 0),
 	GATE("pllg_ref", "pll_ref", 189, 0, tegra_clk_pll_g_ref, 0),

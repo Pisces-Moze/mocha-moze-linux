@@ -1,0 +1,20 @@
+/include/ "camera-vi2-resource-ram.dts"
+
+&{/i2c@7000c500/camera@36} {
+	moze,vi2 = <&{/host1x@50000000/vi@54080000}>;
+};
+
+
+&{/host1x@50000000/vi@54080000} {
+	/* Match the vendor VI master/slave receiver clock topology. */
+	clocks = <&{/clock@60006000} 196>, <&{/clock@60006000} 52>,
+		 <&{/clock@60006000} 146>, <&{/clock@60006000} 144>,
+		 <&{/clock@60006000} 145>;
+	clock-names = "vi", "csi", "cile", "cilab", "cilcd";
+	assigned-clocks = <&{/clock@60006000} 146>,
+			  <&{/clock@60006000} 144>, <&{/clock@60006000} 145>;
+	assigned-clock-parents = <&{/clock@60006000} 211>,
+				 <&{/clock@60006000} 211>, <&{/clock@60006000} 211>;
+	assigned-clock-rates = <102000000 102000000 102000000>;
+	avdd-dsi-csi-supply = <&{/i2c@7000d000/tps65913@58/pmic/regulators/ldo5}>;
+};

@@ -1,0 +1,13 @@
+/include/ "camera-front-probe.dts"
+
+/* Explicit RAM candidate only. The normal desktop DTS does not include this. */
+&{/i2c@7000c500/camera@36} {
+	compatible = "moze,mocha-ov5693-id";
+	status = "okay";
+	/* Tegra124 VI_SENSOR2 divider and VIM2 output gate. */
+	clocks = <&{/clock@60006000} 266>, <&{/clock@60006000} 171>;
+	clock-names = "xvclk", "vim2";
+	af-supply = <&{/i2c@7000d000/tps65913@58/pmic/regulators/ldo7}>;
+	af-enable-gpios = <&{/gpio@6000d000} 223 0>;
+	/delete-node/ port;
+};

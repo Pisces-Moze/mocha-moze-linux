@@ -1,0 +1,7 @@
+/include/ "camera-vi2-frame-ram.dts"
+/include/ "camera-rear-id.dtsi"
+
+&{/i2c@7000c500/camera@10} {
+	moze,vi2 = <&{/host1x@50000000/vi@54080000}>;
+	nvidia,mipi-calibrate = <&{/mipi@700e3000} 0x3>;
+};

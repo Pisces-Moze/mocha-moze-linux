@@ -840,7 +840,7 @@ static struct tegra_clk tegra124_clks[tegra_clk_max] __initdata = {
 	[tegra_clk_adx] = { .dt_id = TEGRA124_CLK_ADX, .present = true },
 	[tegra_clk_xusb_ss] = { .dt_id = TEGRA124_CLK_XUSB_SS, .present = true },
 	[tegra_clk_i2c6] = { .dt_id = TEGRA124_CLK_I2C6, .present = true },
-	[tegra_clk_vim2_clk] = { .dt_id = TEGRA124_CLK_VIM2_CLK, .present = true },
+	[tegra_clk_vim2_clk_124] = { .dt_id = TEGRA124_CLK_VIM2_CLK, .present = true },
 	[tegra_clk_hdmi_audio] = { .dt_id = TEGRA124_CLK_HDMI_AUDIO, .present = true },
 	[tegra_clk_clk72Mhz] = { .dt_id = TEGRA124_CLK_CLK72MHZ, .present = true },
 	[tegra_clk_vic03] = { .dt_id = TEGRA124_CLK_VIC03, .present = true },

@@ -1,0 +1,27 @@
+/include/ "camera-front-id-ram.dts"
+
+/* RAM-only platform resource check; no production DTS includes this file. */
+&{/pmc@7000e400} {
+	powergates {
+		camera_venc: venc {
+			clocks = <&{/clock@60006000} 196>;
+			resets = <&{/clock@60006000} 20>;
+			#power-domain-cells = <0>;
+		};
+	};
+};
+
+&{/host1x@50000000} {
+	vi@54080000 {
+		compatible = "moze,mocha-vi2-resource-probe";
+		reg = <0 0x54080000 0 0x40000>;
+		/* VI, CSI, CILE; VI IOMMU group 25. */
+		clocks = <&{/clock@60006000} 196>,
+			 <&{/clock@60006000} 52>,
+			 <&{/clock@60006000} 146>;
+		clock-names = "vi", "csi", "cile";
+		power-domains = <&camera_venc>;
+		iommus = <&{/memory-controller@70019000} 25>;
+		nvidia,mipi-calibrate = <&{/mipi@700e3000} 0x10>;
+	};
+};

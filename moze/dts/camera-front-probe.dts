@@ -1,0 +1,41 @@
+/include/ "native-runtime.dts"
+
+/*
+ * Optional OV5693 probe description. The sensor stays disabled until the
+ * VIM2 gate and board power sequencing are handled by the probe driver.
+ * No VI/CSI receiver is enabled by this tree.
+ */
+
+/ {
+	i2c@7000c500 {
+		camera@36 {
+			compatible = "ovti,ov5693";
+			reg = <0x36>;
+			status = "disabled";
+
+			/* TEGRA124_CLK_VI_SENSOR2 (266); vendor mclk2 also gates VIM2 (171). */
+			clocks = <&{/clock@60006000} 266>;
+			clock-names = "xvclk";
+			assigned-clocks = <&{/clock@60006000} 266>;
+			assigned-clock-rates = <24000000>;
+
+			avdd-supply = <&{/i2c@7000d000/tps65913@58/pmic/regulators/ldo4}>;
+			dovdd-supply = <&{/regulators/regulator@a}>;
+			dvdd-supply = <&{/regulators/regulator@b}>;
+
+			/* Tegra GPIO PCC1 (225) and PBB6 (222), asserted low. */
+			reset-gpios = <&{/gpio@6000d000} 225 1>;
+			powerdown-gpios = <&{/gpio@6000d000} 222 1>;
+
+			port {
+				endpoint {
+					/* Mode supported by the Linux sensor driver.
+					 * Route to the receiver only after lane mapping is confirmed.
+					 */
+					data-lanes = <1 2>;
+					link-frequencies = /bits/ 64 <419200000>;
+				};
+			};
+		};
+	};
+};

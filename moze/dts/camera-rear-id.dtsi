@@ -1,0 +1,19 @@
+/ {
+	i2c@7000c500 {
+		camera@10 {
+			compatible = "moze,mocha-imx179-id";
+			reg = <0x10>;
+			/* Tegra124 VI_SENSOR and CSUS (vendor mclk). */
+			clocks = <&{/clock@60006000} 197>, <&{/clock@60006000} 92>;
+			clock-names = "xvclk", "csus";
+			assigned-clocks = <&{/clock@60006000} 197>;
+			assigned-clock-rates = <24000000>;
+			af-supply = <&{/i2c@7000d000/tps65913@58/pmic/regulators/ldo7}>;
+			avdd-supply = <&{/i2c@7000d000/tps65913@58/pmic/regulators/ldo4}>;
+			dovdd-supply = <&{/regulators/regulator@a}>;
+			dvdd-supply = <&{/regulators/regulator@b}>;
+			reset-gpios = <&{/gpio@6000d000} 219 1>;
+			af-enable-gpios = <&{/gpio@6000d000} 223 0>;
+		};
+	};
+};

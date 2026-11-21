@@ -277,6 +277,7 @@ enum clk_id {
 	tegra_clk_vic03,
 	tegra_clk_vic03_8,
 	tegra_clk_vim2_clk,
+	tegra_clk_vim2_clk_124,
 	tegra_clk_vimclk_sync,
 	tegra_clk_vi_sensor,
 	tegra_clk_vi_sensor_8,
