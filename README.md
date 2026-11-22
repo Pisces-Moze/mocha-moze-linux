@@ -4,6 +4,12 @@
 
 [![License: GPL-2.0-only](https://img.shields.io/badge/License-GPL--2.0--only-blue.svg)](LICENSE)
 
+## r8 内核
+
+[r8 整合包](https://github.com/Pisces-Moze/mocha-moze-flasher/releases/tag/source-candidate-20261121-r8)使用 Mocha 的原生双 DSI 显示路径，包含 VDE 适配，并从 [r8 内核同步分支](https://github.com/Pisces-Moze/mocha-moze-linux/tree/mocha-r8-sync-20261121)取得前后摄的 Tegra124 V4L2 预览驱动。驱动提供 320×180、640×360、1280×720 及 5、10、15、30 fps 请求档位，一次可使用一路。实机 RAM 测试中，前摄 640×360 约 15 fps、320×180 约 30 fps，后摄 1280×720 约 10 fps。
+
+以下为 6.12.111 基线、原始配置和构建说明。替换内核时请使用同一构建产出的设备树及匹配模块。
+
 ## 简介
 
 这是**完整的内核源码仓库**，不是只放补丁的仓库，也不是 kernel.org 已接受的上游支持；仓库里没有伪造的上游 Git 历史。2026-10-07 的快照把三件事分开提交：导入 Debian 6.12.111 源码基线、加入 Mocha 适配与 stable/native 两套配置、发布实现说明与可复现的构建工具。
