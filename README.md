@@ -131,7 +131,7 @@ bash moze/tools/build.sh native ../artifacts/native
 
 外置模块（`mocha-moze-drivers` 的背光与音频）必须用同一份 `O=` 目录的头文件和 `Module.symvers` 编译，装进同一个 release 的模块目录。跨 release 放进去的 `.ko` 不会生效。
 
-## 验证范围与当前状态
+## 早期内核验证记录
 
 2026-10-08 的发布只验证到源码级别，没有重新构建并刷机：
 
@@ -152,17 +152,9 @@ bash moze/tools/build.sh native ../artifacts/native
 
 编译通过不等于实机通过，DTB 编出来也不等于外设跑起来。内核侧的结论以实机屏幕、`uname`、四核上线和 journal 为准。
 
-## 未实现与计划
+## 当前待办
 
-| 事项 | 现状 | 出处 |
-|---|---|---|
-| CPU DVFS、热管理、suspend | 四核上线不代表这些完成；CPU/GPU 调频与超频保持未启用 | `arch/arm/mach-tegra/reset.c` 的改动范围、总入口 `docs/STATUS.md` |
-| 原生显示路径默认化 | 主动复位候选的自动 GPU/Niri 画面通过有限 RAM 验收；完整桌面未验收，尚未替换默认路径 | `moze/configs/native-experimental.config`、总入口 `docs/ISSUES.md` |
-| 左右链路的最终画面 | 主动复位候选自动 A=0/B=768，两个有效冷 RAM 启动及 Niri modeset 画面正常；完整安装待验收 | 总入口 `docs/ISSUES.md` |
-| Tegra124 硬件编解码 | VDE 的非标准 tile 布局没有完整格式，只有软件解码可用 | 总入口 `docs/ISSUES.md` |
-| 音频 | RT5671 在 `0x1c` 返回 NACK，ALSA 无卡；树内的 RT5670 codec 只作接口参考 | `drivers/` 树内 codec 与本仓库配置、总入口 `docs/ISSUES.md` |
-| 蓝牙、摄像头、OTG、休眠 | 现代内核的 UART、固件、GPIO 与配对待完成；控制器、传感器、VBUS 与恢复链路待适配 | 总入口 `docs/STATUS.md` |
-| 改动推向上游 | 这些改动是为这一台设备写的，没有提交到 kernel.org，也没有逐项拆成可 review 的补丁序列 | 本仓库的三条提交 |
+[r8 内核](#r8-内核)已整合 VDE H.264 解码和双摄 V4L2 连续预览。后续跟踪视频支持范围、相机高级控制、USB OTG、挂起恢复、长时间温控和上游整理。参见 [Mocha 任务表](https://github.com/Pisces-Moze/mocha-moze-debian/blob/main/docs/TODO.md)。
 
 ## 常见问题
 
